@@ -6,3 +6,4 @@ DiagHam.kdev4
 autom4te.cache/
 compile
 test-driver
+**/.deps
