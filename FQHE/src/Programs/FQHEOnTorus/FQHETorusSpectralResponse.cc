@@ -52,7 +52,6 @@ using std::endl;
 using std::ofstream;
 using std::setw; //added by ba340
 
-//GetHilbertSpace Function
 ParticleOnTorus* GetHilbertSpace(bool Statistics,int NbrParticles, int NbrFluxQuanta, int Momentum)
 {
 	ParticleOnTorus* Space;
@@ -78,11 +77,9 @@ ParticleOnTorus* GetHilbertSpace(bool Statistics,int NbrParticles, int NbrFluxQu
     return Space;
 }
 
-const double EPSILON = 1.0/10000000000.0;
-
-//// tail recursive function
-//
-// Complex Greens(ComplexMatrix& Matrix, int term, int final_term, double omega)
+// // tail recursive version
+// //
+// Complex Greens(ComplexMatrix& Matrix, int term, int final_term, double omega, const double EPSILON = 1.0/10000000000.0)
 // {
 //   if (term < final_term)
 //   {
@@ -97,18 +94,20 @@ const double EPSILON = 1.0/10000000000.0;
 //   }
 // }
 
-Complex Greens(ComplexMatrix& Matrix, int term_start, int final_term, double omega)
-{
-  Complex rv(1.0); // for term == final_term
-  for (int term = final_term-1; term >=term_start; --term) // go backwards
-  {
-    Complex denom_a = (Complex(omega,EPSILON)-Matrix[term][term]);
-    Complex denom_fraction_numerator = (Matrix[term+1][term]*Matrix[term+1][term]);
-    Complex denom_fraction_denom = rv;
-    rv =  Complex(1.0)/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
-  }
-  return rv;
-}
+// //iterative version
+// //
+// Complex Greens(ComplexMatrix& matrix, int term_start, int final_term, double omega, const double EPSILON = 1.0/10000000000.0)
+// {
+//   Complex rv(1.0); // for term == final_term
+//   for (int term = final_term-1; term >=term_start; --term) // go backwards
+//   {
+//     Complex denom_a = (Complex(omega,EPSILON)-matrix[term][term]);
+//     Complex denom_fraction_numerator = (matrix[term+1][term]*matrix[term+1][term]);
+//     Complex denom_fraction_denom = rv;
+//     rv =  Complex(1.0)/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
+//   }
+//   return rv;
+// }
 
 int main ( int argc, char** argv )
 {
@@ -207,9 +206,6 @@ int main ( int argc, char** argv )
         return -1;
     }
     
-    //BasicLanczosAlgorithm bla(Architecture.GetArchitecture(), 0, 0);
-    //double absG00 = bla.Greens();
-    
     char OutputFileName[1024];
     sprintf(OutputFileName,"%s.dat", OutputNamePrefix);
     char EigenvectorName[1024];
@@ -221,14 +217,10 @@ int main ( int argc, char** argv )
     bool FirstRun=true;
     for (int k=0;k</* NbrFluxQuanta */ 1;++k)
     {
-		cout << "hello1" << endl; 
 		ParticleOnTorus* TargetSpace = GetHilbertSpace(Statistics,NbrParticles,NbrFluxQuanta,(Momentum+k)%NbrFluxQuanta);
-		cout << "hello2" << endl; 
 		Space->SetTargetSpace(TargetSpace);
-		cout << "hello3" << endl; 
 		RealVector* TargetVector = new RealVector(RealState->GetVectorDimension(),true);
 		RealVector* TmpTargetVector = new RealVector(RealState->GetVectorDimension());
-		cout << "hello4" << endl; 
 		for (int q=0;q<NbrFluxQuanta;++q)
 		{
 			ParticleOnSphereDensityOperator Operator (Space,(q+k)%NbrFluxQuanta,q);
@@ -236,43 +228,52 @@ int main ( int argc, char** argv )
 			Operation.ApplyOperation(Architecture.GetArchitecture());  
 			(*TargetVector) += (*TmpTargetVector);
 		}
-		cout << "hello5" << endl; 
-		delete TargetVector, TmpTargetVector; //remember to delete these pointers once you're done
-		cout << "hello6" << endl; 
+		delete TargetVector, TmpTargetVector; //remember to delete these pointers
 		sprintf(EigenvectorName,"%s_k_%d.vec", OutputNamePrefix, k);
-		cout << "hello7" << endl; 
-		AbstractQHEHamiltonian* Hamiltonian = new ParticleOnTorusGenericHamiltonian (TargetSpace, NbrParticles, NbrFluxQuanta, Ratio, NbrPseudoPotentials, PseudoPotentials,Architecture.GetArchitecture(), /*1024*/ Memory);
-		double Shift = -10.0;	
-		Hamiltonian->ShiftHamiltonian(Shift);
-		cout << "hello8" << endl; 
-		FQHEOnTorusMainTask Task(&Manager, Space, &Lanczos, Hamiltonian, Momentum, Shift, OutputFileName/*, FirstRun, EigenvectorName*/);
-		//cout << "hello9" << endl; 
+		
+		//create hamiltonian
+		
+		//AbstractQHEHamiltonian* Hamiltonian = new ParticleOnTorusGenericHamiltonian (TargetSpace, NbrParticles, NbrFluxQuanta, Ratio, NbrPseudoPotentials, PseudoPotentials,Architecture.GetArchitecture(), /*1024*/ Memory);
+		//double Shift = -10.0;	
+		//Hamiltonian->ShiftHamiltonian(Shift);
+		
+		//main task
+		
+		//FQHEOnTorusMainTask Task(&Manager, Space, &Lanczos, Hamiltonian, Momentum, Shift, OutputFileName, /*FirstRun, EigenvectorName*/);
 		//MainTaskOperation TaskOperation (&Task);
 		//TaskOperation.ApplyOperation(Architecture.GetArchitecture());
+		
 		if (FirstRun==true)
 		    FirstRun = false;
 		
-		//Hamiltonian->GetHamiltonian();
+		//ComplexMatrix test2 = Hamiltonian->GetHamiltonian();
+		//cout << test2[1][1] << endl;
      }
      
     delete RealState; 
     delete Space;
     
-    // Use Hamiltonian->GetHamiltonian() to get the complex matrix from Hamiltonian
+    // not sure how best to call function from AbstractLanczosAlgorithm, so I am using this for now
+    BasicLanczosAlgorithm test(Architecture.GetArchitecture(), 0, 0);
     
     ofstream File;
     File.precision ( 14 );
     File.open ( OutputFileName, ios::binary | ios::out );
     
+    // create a test 2x2 identity matrix
     int matrix_sz = 2;
-    ComplexMatrix cm(matrix_sz, matrix_sz,true);
-    cm.SetToIdentity();  
+    ComplexMatrix test_matrix(matrix_sz, matrix_sz,true);
+    test_matrix.SetToIdentity();
+    
+    //set the period
     double T = 10.0;
+    
     for (int i = 1; i<=10; ++i)
     {
       double omega = 2*M_PI*i/T;
-      Complex Green = Greens(cm,0,matrix_sz-1, omega);
-      File << omega << " " << Norm(Green) << " " << endl;
+      Complex greens = test.EvaluateSpectralResponse(test_matrix,matrix_sz-1,omega);
+      //Complex Green = Greens(cm,0,matrix_sz-1, omega); //sometimes more convenient to use function in same file, for fast prototyping
+      File << omega << " " << Norm(greens) << " " << endl;
     }
     
     File << endl;

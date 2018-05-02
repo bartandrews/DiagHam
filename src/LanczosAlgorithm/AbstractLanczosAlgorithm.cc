@@ -27,7 +27,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-
+#include "Matrix/ComplexMatrix.h" //added by ba340
 #include "LanczosAlgorithm/AbstractLanczosAlgorithm.h"
 
 
@@ -163,25 +163,24 @@ int AbstractLanczosAlgorithm::EigenstateIndexShift()
   return 0;
 }
 
-double AbstractLanczosAlgorithm::Greens()
-{
-  return 1.23;
+// evaluate spectral response
+//
+// matrix = symmetric tridiagonal Hamiltonian matrix
+// final_term = term at which continued fraction ends
+// omega = input angular frequency
+// term_start = term at which continued fraction starts (default=0)
+// epsilon = small parameter to avoid poles (default=10^-10)
+// return value = spectral response Green's function
+
+Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(ComplexMatrix& matrix, int final_term, double omega, int term_start, const double epsilon)
+{ 
+  Complex rv(1.0); // for term == final_term
+  for (int term = final_term-1; term >=term_start; --term) // go backwards
+  {
+    Complex denom_a = (Complex(omega,epsilon)-matrix[term][term]);
+    Complex denom_fraction_numerator = (matrix[term+1][term]*matrix[term+1][term]);
+    Complex denom_fraction_denom = rv;
+    rv =  Complex(1.0)/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
+  }
+  return rv;
 }
-
-
-// Green's function
-//
-// matrix = input (symmetric tridiagonal) Hamiltonian matrix
-// term = intial term of the continued fraction (starts from 1)
-// final_term = final term of the continued fraction (ends at n)
-// omega = angular frequency
-// epsilon = small parameter to avoid poles
-//
-// function x = Greens(matrix, term, final_term, omega, epsilon)
-//     if term == final_term
-//         x=1;
-//     else
-//         x=1/((complex(omega,epsilon)-matrix(term,term))-(matrix(term+1,term)^2/Greens(matrix, term+1, final_term, omega, epsilon)));
-//     end
-// end
-
