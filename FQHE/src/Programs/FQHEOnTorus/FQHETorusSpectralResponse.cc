@@ -126,14 +126,19 @@ int main ( int argc, char** argv )
     Manager += SystemGroup;
     Manager += PlotOptionGroup;
     Architecture.AddOptionGroup ( &Manager );
+    Lanczos.AddOptionGroup(&Manager);
     Manager += PrecalculationGroup;
     Manager += MiscGroup;
 
     ( *SystemGroup ) += new SingleStringOption ( '\0', "state", "name of the vector file describing the state whose density has to be plotted" );
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-file", "file describing the 2-body interaction in terms of the pseudo-potential");
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-name", "interaction name (as it should appear in output files)", "unknown");
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-min", "spectral response omega min",0.0);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-max", "spectral response omega max",1.0);
+    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-interval", "spectral response interval",-1);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-epsilon", "spectral response epsilon",1E-6);
 
-    ( *PlotOptionGroup ) += new SingleStringOption ( '\n', "output", "output file name (default output name replace the .vec extension of the input file with .rho or .rhorho)", 0 );
+    ( *PlotOptionGroup ) += new SingleStringOption ( '\n', "output", "output file ame (default output name replace the .vec extension of the input file with .rho or .rhorho)", 0 );
     
     (*PrecalculationGroup) += new SingleIntegerOption  ('m', "memory", "amount of memory that can be allocated for fast multiplication (in Mbytes)", 1024);
 
@@ -159,6 +164,12 @@ int main ( int argc, char** argv )
         cout << "can't find vector file " << Manager.GetString ( "state" ) << endl;
         return -1;
     }
+     if ( Manager.GetDouble ( "sr-omega-min" ) > Manager.GetDouble ( "sr-omega-max" ) )  
+    {
+        cout << "incorrect range" << endl;
+        return -1;
+    }
+
 
     int NbrParticles = 0;
     int NbrFluxQuanta = 0;
@@ -210,83 +221,52 @@ int main ( int argc, char** argv )
     sprintf(OutputFileName,"%s.dat", OutputNamePrefix);
     char EigenvectorName[1024];
     
-    ParticleOnTorus* Space = GetHilbertSpace(Statistics,NbrParticles, NbrFluxQuanta,Momentum);
+    ParticleOnTorus* Space = GetHilbertSpace(Statistics, NbrParticles, NbrFluxQuanta, Momentum);
     //check dimension of space matches (cassert)
     Architecture.GetArchitecture()->SetDimension(Space->GetHilbertSpaceDimension());
     
-    // declare Hamiltonian
-    ComplexMatrix test2;
-    
     bool FirstRun=true;
-    for (int k=0;k</*NbrFluxQuanta*/1;++k)
-    {
+    for (int k=0;k<NbrFluxQuanta;++k)
+      {
 
-		ParticleOnTorus* TargetSpace = GetHilbertSpace(Statistics,NbrParticles,NbrFluxQuanta,(Momentum+k)%NbrFluxQuanta);
-		Space->SetTargetSpace(TargetSpace);
-		RealVector* TargetVector = new RealVector(RealState->GetVectorDimension(),true);
-		RealVector* TmpTargetVector = new RealVector(RealState->GetVectorDimension());
-		for (int q=0;q<NbrFluxQuanta;++q)
-		{
-			ParticleOnSphereDensityOperator Operator (Space,(q+k)%NbrFluxQuanta,q);
-			VectorOperatorMultiplyOperation Operation(&Operator,RealState,TmpTargetVector);
-			Operation.ApplyOperation(Architecture.GetArchitecture());  
-			(*TargetVector) += (*TmpTargetVector);
-		}
-		delete TargetVector, TmpTargetVector; //remember to delete these pointers
-		sprintf(EigenvectorName,"%s_k_%d.vec", OutputNamePrefix, k);
-		
-		//create hamiltonian
-		
-		AbstractQHEHamiltonian* Hamiltonian = new ParticleOnTorusGenericHamiltonian (TargetSpace, NbrParticles, NbrFluxQuanta, Ratio, NbrPseudoPotentials, PseudoPotentials,Architecture.GetArchitecture(), /*1024*/ Memory);
-		double Shift = -10.0;	
-		Hamiltonian->ShiftHamiltonian(Shift);
-		
-		//main task
-		
-		//FQHEOnTorusMainTask Task(&Manager, Space, &Lanczos, Hamiltonian, Momentum, Shift, OutputFileName, FirstRun /*EigenvectorName*/);
-		//MainTaskOperation TaskOperation (&Task);
-		//TaskOperation.ApplyOperation(Architecture.GetArchitecture());
-		
-		if (FirstRun==true)
-		    FirstRun = false;
-		
-		test2 = *(Hamiltonian->GetHamiltonian());
-		//cout << test2[1][1] << endl;
-		
+	ParticleOnTorus* TargetSpace = GetHilbertSpace(Statistics, NbrParticles, NbrFluxQuanta, (Momentum+k)%NbrFluxQuanta);
+	Space->SetTargetSpace(TargetSpace);
+	RealVector* TargetVector = new RealVector(TargetSpace->GetHilbertSpaceDimension(),true);
+	RealVector* TmpTargetVector = new RealVector(TargetSpace->GetHilbertSpaceDimension());
+	for (int q=0;q<NbrFluxQuanta;++q)
+	{
+	  ParticleOnSphereDensityOperator Operator (Space,(q+k)%NbrFluxQuanta,q);
+	  VectorOperatorMultiplyOperation Operation(&Operator,RealState,TmpTargetVector);
+	  Operation.ApplyOperation(Architecture.GetArchitecture());  
+	  (*TargetVector) += (*TmpTargetVector);
+	}
+	delete TmpTargetVector; //remember to delete these pointers
+	sprintf(EigenvectorName,"%s_k_%d", OutputNamePrefix, k);
+	
+	//create hamiltonian
+	
+	AbstractQHEHamiltonian* Hamiltonian = new ParticleOnTorusGenericHamiltonian (TargetSpace, NbrParticles, NbrFluxQuanta, Ratio, NbrPseudoPotentials, PseudoPotentials, Architecture.GetArchitecture(), /*1024*/ 0);
+	double Shift = -10.0;	
+	Hamiltonian->ShiftHamiltonian(Shift);
+	
+	//main task
+	cout <<  "Manager at " <<  &Manager <<  endl;
+	FQHEOnTorusMainTask Task(&Manager, Space, &Lanczos, Hamiltonian, Momentum, Shift, OutputFileName, FirstRun, EigenvectorName,  k,  TargetVector);
+	MainTaskOperation TaskOperation (&Task);
+	TaskOperation.ApplyOperation(Architecture.GetArchitecture());
+	
+	if (FirstRun==true)
+	    FirstRun = false;
+	    
+	delete Hamiltonian;
+	delete TargetSpace;
 
-     }
-     
-    delete RealState; 
-    delete Space;
-    
-    // not sure how best to call function from AbstractLanczosAlgorithm, so I am using this for now
-    BasicLanczosAlgorithm test(Architecture.GetArchitecture(), 0, 0);
-    
-    ofstream File;
-    File.precision ( 14 );
-    File.open ( OutputFileName, ios::binary | ios::out /*append | std::ios_base::app*/);
-    
-    // create a test 2x2 identity matrix
-    int test_matrix_sz = 2;
-    ComplexMatrix test_matrix(test_matrix_sz, test_matrix_sz,true);
-    test_matrix.SetToIdentity();
-    
-    // prepare the actual matrix
-    int matrix_sz = test2.GetNbrRow();
-    
-    //set the period
-    double T = 10.0;
-    
-    for (int i = 1; i<=10; ++i)
-    {
-      double omega = 2*M_PI*i/T;
-      Complex greens = test.EvaluateSpectralResponse(test2,matrix_sz-1,omega);
-      //Complex Green = Greens(cm,0,matrix_sz-1, omega); //sometimes more convenient to use function in same file, for fast prototyping
-      File << omega << " " << Norm(greens) << " " << endl;
-    }
-    
-    File << endl;
-    File.close();
+      }
+      
+      delete RealState; 
+      delete Space;
+      
+   
 
     return 0;
 }

@@ -158,13 +158,16 @@ class AbstractLanczosAlgorithm
   
   // evaluate spectral response
   //
-  // matrix = symmetric tridiagonal Hamiltonian matrix
   // final_term = term at which continued fraction ends
   // omega = input angular frequency
   // term_start = term at which continued fraction starts (default=0)
   // epsilon = small parameter to avoid poles (default=10^-10)
   // return value = spectral response Green's function
-  virtual Complex EvaluateSpectralResponse(ComplexMatrix& matrix, int final_term, double omega, int term_start=0, const double epsilon=1.0/10000000000.0);
+  virtual Complex EvaluateSpectralResponse(double omega, const double epsilon=1E-10, int final_term=-1, int term_start=0);
+  
+  // sample the spectral response and write to file
+  virtual void SampleSpectralResponse(std::ostream &Str, double omegaMin, double omegaMax, double epsilon, int nbrPoints=100);
+  
 
  protected:
   

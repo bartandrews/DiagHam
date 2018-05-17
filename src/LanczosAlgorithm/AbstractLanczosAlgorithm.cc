@@ -172,15 +172,32 @@ int AbstractLanczosAlgorithm::EigenstateIndexShift()
 // epsilon = small parameter to avoid poles (default=10^-10)
 // return value = spectral response Green's function
 
-Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(ComplexMatrix& matrix, int final_term, double omega, int term_start, const double epsilon)
+Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(double omega, const double epsilon, int final_term, int term_start)
 { 
-  Complex rv(1.0); // for term == final_term
+  if (final_term<0) final_term = this->TridiagonalizedMatrix.GetNbrRow();
+  Complex denom_a, denom_fraction_denom, denom_fraction_numerator, rv(1.0); // for term == final_term
   for (int term = final_term-1; term >=term_start; --term) // go backwards
   {
-    Complex denom_a = (Complex(omega,epsilon)-matrix[term][term]);
-    Complex denom_fraction_numerator = (matrix[term+1][term]*matrix[term+1][term]);
-    Complex denom_fraction_denom = rv;
-    rv =  Complex(1.0)/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
+    denom_a = Complex(omega,epsilon)-this->TridiagonalizedMatrix(term,term);
+    denom_fraction_numerator = this->TridiagonalizedMatrix(term+1,term)*this->TridiagonalizedMatrix(term+1,term);
+    denom_fraction_denom = rv;
+    rv =  1.0/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
   }
   return rv;
 }
+
+
+// sample the spectral response and write to file
+void AbstractLanczosAlgorithm::SampleSpectralResponse(std::ostream &Str, double omegaMin, double omegaMax, double epsilon, int nbrPoints)
+{
+  // dummy implementation - add gradient algorithm
+  double step=(omegaMax-omegaMin)/(nbrPoints-1);
+  double omega = omegaMin;
+  Complex response;
+  for (int i = 0; i<nbrPoints; ++i,omega+=step)
+  {
+    response=EvaluateSpectralResponse(omega, epsilon);
+    Str << omega <<" "<< response << std::endl;
+  }
+}
+

@@ -65,6 +65,14 @@ class FQHEOnTorusMainTask: public QHEOnDiskMainTask
   int Multiplicity;
   // pointer to an externally provided initial vector
   Vector *ExplicitInitialVector;
+  // calculate spectral response at every so many steps
+  int SpectralResponseInterval;
+  // 
+  double SpectralResponseEpsilon;
+  //
+  double SpectralResponseOmegaMin;
+  //
+  double SpectralResponseOmegaMax;
 
   // pointer to Lanczos manager
   LanczosManager* AlgorithmManager;
