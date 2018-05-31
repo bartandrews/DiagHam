@@ -67,11 +67,11 @@ class FQHEOnTorusMainTask: public QHEOnDiskMainTask
   Vector *ExplicitInitialVector;
   // calculate spectral response at every so many steps
   int SpectralResponseInterval;
-  // 
+  // small parameter to avoid the poles
   double SpectralResponseEpsilon;
-  //
+  // minimum value of omega
   double SpectralResponseOmegaMin;
-  //
+  // maximum value of omega
   double SpectralResponseOmegaMax;
 
   // pointer to Lanczos manager

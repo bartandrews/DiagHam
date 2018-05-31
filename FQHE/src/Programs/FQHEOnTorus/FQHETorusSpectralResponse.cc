@@ -20,6 +20,8 @@
 #include "Operator/ParticleOnSphereDensityDensityOperator.h"
 #include "Operator/ParticleOnSphereDensityOperator.h"
 
+#include "Operator/ParticleOnTorusDensityOperator.h" //added by ba340
+
 #include "LanczosAlgorithm/LanczosManager.h" //added by ba340
 #include "LanczosAlgorithm/AbstractLanczosAlgorithm.h" //added by ba340
 #include "LanczosAlgorithm/BasicLanczosAlgorithm.h" // added by ba340
@@ -134,8 +136,8 @@ int main ( int argc, char** argv )
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-file", "file describing the 2-body interaction in terms of the pseudo-potential");
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-name", "interaction name (as it should appear in output files)", "unknown");
     (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-min", "spectral response omega min",0.0);
-    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-max", "spectral response omega max",1.0);
-    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-interval", "spectral response interval",-1);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-max", "spectral response omega max",10.0);
+    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-interval", "spectral response interval",100);
     (*SystemGroup) += new SingleDoubleOption ('\n', "sr-epsilon", "spectral response epsilon",1E-6);
 
     ( *PlotOptionGroup ) += new SingleStringOption ( '\n', "output", "output file ame (default output name replace the .vec extension of the input file with .rho or .rhorho)", 0 );
@@ -226,32 +228,35 @@ int main ( int argc, char** argv )
     Architecture.GetArchitecture()->SetDimension(Space->GetHilbertSpaceDimension());
     
     bool FirstRun=true;
-    for (int k=0;k<NbrFluxQuanta;++k)
+    for (int qy=0;qy<NbrFluxQuanta;++qy)
       {
 
-	ParticleOnTorus* TargetSpace = GetHilbertSpace(Statistics, NbrParticles, NbrFluxQuanta, (Momentum+k)%NbrFluxQuanta);
+	ParticleOnTorus* TargetSpace = GetHilbertSpace(Statistics, NbrParticles, NbrFluxQuanta, (Momentum+qy)%NbrFluxQuanta);
 	Space->SetTargetSpace(TargetSpace);
 	RealVector* TargetVector = new RealVector(TargetSpace->GetHilbertSpaceDimension(),true);
 	RealVector* TmpTargetVector = new RealVector(TargetSpace->GetHilbertSpaceDimension());
-	for (int q=0;q<NbrFluxQuanta;++q)
+	for (int qx=0;qx<NbrFluxQuanta;++qx)
 	{
-	  ParticleOnSphereDensityOperator Operator (Space,(q+k)%NbrFluxQuanta,q);
-	  VectorOperatorMultiplyOperation Operation(&Operator,RealState,TmpTargetVector);
-	  Operation.ApplyOperation(Architecture.GetArchitecture());  
-	  (*TargetVector) += (*TmpTargetVector);
+	  for (int ky=0;ky<NbrFluxQuanta;++ky)
+	  {
+	    ParticleOnTorusDensityOperator Operator (Space,(ky+qy)%NbrFluxQuanta,ky,qx,Ratio);
+	    VectorOperatorMultiplyOperation Operation(&Operator,RealState,TmpTargetVector);
+	    Operation.ApplyOperation(Architecture.GetArchitecture());
+	    (*TargetVector) += (*TmpTargetVector);
+	  }
 	}
 	delete TmpTargetVector; //remember to delete these pointers
-	sprintf(EigenvectorName,"%s_k_%d", OutputNamePrefix, k);
+	sprintf(EigenvectorName,"%s_qy_%d", OutputNamePrefix, qy);
 	
 	//create hamiltonian
 	
-	AbstractQHEHamiltonian* Hamiltonian = new ParticleOnTorusGenericHamiltonian (TargetSpace, NbrParticles, NbrFluxQuanta, Ratio, NbrPseudoPotentials, PseudoPotentials, Architecture.GetArchitecture(), /*1024*/ 0);
+	AbstractQHEHamiltonian* Hamiltonian = new ParticleOnTorusGenericHamiltonian (TargetSpace, NbrParticles, NbrFluxQuanta, Ratio, NbrPseudoPotentials, PseudoPotentials, Architecture.GetArchitecture(), /*1024*/ Memory);
 	double Shift = -10.0;	
 	Hamiltonian->ShiftHamiltonian(Shift);
 	
 	//main task
 	cout <<  "Manager at " <<  &Manager <<  endl;
-	FQHEOnTorusMainTask Task(&Manager, Space, &Lanczos, Hamiltonian, Momentum, Shift, OutputFileName, FirstRun, EigenvectorName,  k,  TargetVector);
+	FQHEOnTorusMainTask Task(&Manager, Space, &Lanczos, Hamiltonian, Momentum, Shift, OutputFileName, FirstRun, EigenvectorName,  qy,  TargetVector);
 	MainTaskOperation TaskOperation (&Task);
 	TaskOperation.ApplyOperation(Architecture.GetArchitecture());
 	
@@ -263,7 +268,7 @@ int main ( int argc, char** argv )
 
       }
       
-      delete RealState; 
+      delete RealState;
       delete Space;
       
    

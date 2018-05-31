@@ -1018,6 +1018,19 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 		  TotalCurrentTime.tv_sec = TotalEndingTime.tv_sec;
 		}
 	      cout << endl;
+	      cout << "before loop" << endl;
+	      cout << "SpectralResponseInterval = " << SpectralResponseInterval << endl;
+	      cout << "CurrentNbrIterLanczos = " << CurrentNbrIterLanczos << endl;
+	      if ((SpectralResponseInterval > 0)&&(CurrentNbrIterLanczos%SpectralResponseInterval == 0))
+	        {
+		  cout << "inside the loop" << endl;
+		  char* TmpName = new char [strlen(this->EigenvectorFileName) + 64];
+                  sprintf (TmpName, "%s.omega_%g-%g_eps_%g.ni_%d.sr", this->EigenvectorFileName,SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon, CurrentNbrIterLanczos);
+	          ofstream File(TmpName, ios::out); 
+         	  Lanczos->SampleSpectralResponse(File, SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon);
+		  File.close();
+		  delete [] TmpName;
+		}
 	    }
 	  if ((Lanczos->TestConvergence() == true) && (CurrentNbrIterLanczos == 0))
 	    {

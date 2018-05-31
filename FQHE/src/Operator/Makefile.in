@@ -140,7 +140,8 @@ am_libQHEOperator_a_OBJECTS =  \
 	ParticleOnTorusWithMagneticTranslationsDensityOperator.$(OBJEXT) \
 	ParticleOnSphereCreationOperator.$(OBJEXT) \
 	ParticleOnSphereAnnihilationOperator.$(OBJEXT) \
-	ParticleOnTorusCreationOperator.$(OBJEXT)
+	ParticleOnTorusCreationOperator.$(OBJEXT) \
+	ParticleOnTorusDensityOperator.$(OBJEXT)
 libQHEOperator_a_OBJECTS = $(am_libQHEOperator_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -398,7 +399,8 @@ ParticleOnTorusWithMagneticTranslationsDensityDensityOperator.cc \
 ParticleOnTorusWithMagneticTranslationsDensityOperator.cc \
 ParticleOnSphereCreationOperator.cc \
 ParticleOnSphereAnnihilationOperator.cc \
-ParticleOnTorusCreationOperator.cc
+ParticleOnTorusCreationOperator.cc \
+ParticleOnTorusDensityOperator.cc
 
 all: all-recursive
 
@@ -478,6 +480,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnSphereWithSpinSzParityOperator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnSquareLatticeWithSpinBandDensityOperator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnTorusCreationOperator.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnTorusDensityOperator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnTorusKxOperator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnTorusWithMagneticTranslationsDensityDensityOperator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ParticleOnTorusWithMagneticTranslationsDensityOperator.Po@am__quote@

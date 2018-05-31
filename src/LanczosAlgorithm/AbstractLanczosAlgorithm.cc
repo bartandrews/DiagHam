@@ -173,7 +173,7 @@ int AbstractLanczosAlgorithm::EigenstateIndexShift()
 // return value = spectral response Green's function
 
 Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(double omega, const double epsilon, int final_term, int term_start)
-{ 
+{     
   if (final_term<0) final_term = this->TridiagonalizedMatrix.GetNbrRow();
   Complex denom_a, denom_fraction_denom, denom_fraction_numerator, rv(1.0); // for term == final_term
   for (int term = final_term-1; term >=term_start; --term) // go backwards
@@ -183,6 +183,7 @@ Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(double omega, const d
     denom_fraction_denom = rv;
     rv =  1.0/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
   }
+  
   return rv;
 }
 
@@ -190,14 +191,34 @@ Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(double omega, const d
 // sample the spectral response and write to file
 void AbstractLanczosAlgorithm::SampleSpectralResponse(std::ostream &Str, double omegaMin, double omegaMax, double epsilon, int nbrPoints)
 {
-  // dummy implementation - add gradient algorithm
-  double step=(omegaMax-omegaMin)/(nbrPoints-1);
+  double step=(omegaMax-omegaMin)/(nbrPoints);
   double omega = omegaMin;
-  Complex response;
+  Complex response=0.0;
+  double poleOmega, widthOmega=0;
+  
   for (int i = 0; i<nbrPoints; ++i,omega+=step)
   {
+    // poleOmega = the omega at which we have the highest response
+    // if current response is greater than previous, current omega = poleOmega
+    // widthOmega = half width half maximum omega
+    // if response drops below half max after pole for the first time, current omega = widthOmega
+    if (Norm(EvaluateSpectralResponse(omega, epsilon))>Norm(response))
+      poleOmega=omega;
+    else if ((widthOmega==0) && (Norm(EvaluateSpectralResponse(omega, epsilon))<0.5*Norm(EvaluateSpectralResponse(poleOmega, epsilon))))
+    {
+      widthOmega=omega-poleOmega;
+    }
     response=EvaluateSpectralResponse(omega, epsilon);
-    Str << omega <<" "<< response << std::endl;
+    Str << omega <<" "<< Norm(response) << std::endl;
+  }
+  //Str << "Pole omega = " << poleOmega << std::endl;
+  //Str << "HWHM omega = " << widthOmega << std::endl;
+  omega = poleOmega-widthOmega;
+  step=2*widthOmega/nbrPoints;
+  for (int i=0; i<nbrPoints; ++i,omega+=step)
+  {
+    response=EvaluateSpectralResponse(omega, epsilon);
+    Str << omega <<" "<< Norm(response) << std::endl;
   }
 }
 
