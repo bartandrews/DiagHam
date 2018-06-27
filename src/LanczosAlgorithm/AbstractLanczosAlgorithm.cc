@@ -175,16 +175,18 @@ int AbstractLanczosAlgorithm::EigenstateIndexShift()
 Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(double omega, const double epsilon, int final_term, int term_start)
 {     
   if (final_term<0) final_term = this->TridiagonalizedMatrix.GetNbrRow();
-  Complex denom_a, denom_fraction_denom, denom_fraction_numerator, rv(1.0); // for term == final_term
-  for (int term = final_term-1; term >=term_start; --term) // go backwards
+  Complex a, denom_fraction_numerator, current_denom; // for term == final_term
+  
+  current_denom = Complex(omega,epsilon)-this->TridiagonalizedMatrix(final_term-1,final_term-1);
+  
+  for (int n = final_term-2; n >term_start; --n) // n is index of Lanczos steps go backwards
   {
-    denom_a = Complex(omega,epsilon)-this->TridiagonalizedMatrix(term,term);
-    denom_fraction_numerator = this->TridiagonalizedMatrix(term+1,term)*this->TridiagonalizedMatrix(term+1,term);
-    denom_fraction_denom = rv;
-    rv =  1.0/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
+    a = this->TridiagonalizedMatrix(n, n);
+    denom_fraction_numerator = this->TridiagonalizedMatrix(n-1,n)*this->TridiagonalizedMatrix(n-1,n);
+    current_denom = Complex(omega,epsilon)- a - denom_fraction_numerator / current_denom;
   }
   
-  return rv;
+  return 1.0/current_denom;
 }
 
 

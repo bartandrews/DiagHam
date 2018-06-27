@@ -120,6 +120,8 @@ FQHEOnTorusMainTask::FQHEOnTorusMainTask(OptionManager* options, AbstractHilbert
       this->KyOnlyFlag = false;
       this->RealFlag = false;      
     }
+  if (explicitInitialVector->GetVectorType()&Vector::ComplexDatas)
+    this->RealFlag = false;
   this->MultiplicityFlag = false;
   this->AlgorithmManager = lanczos;
   this->EnergyShift = shift;
@@ -190,7 +192,15 @@ FQHEOnTorusMainTask::FQHEOnTorusMainTask(OptionManager* options, AbstractHilbert
     }
   else
     {
-      this->SpectralResponseInterval = false;
+      this->SpectralResponseInterval = 0;
+    }
+  if ((*options)["sr-nbrsteps"] != 0)
+    {
+      this->SpectralResponseNumberSteps = options->GetInteger("sr-nbrsteps");
+    }
+  else
+    {
+      this->SpectralResponseNumberSteps = 0;
     }
   if ((*options)["sr-epsilon"] != 0)
     {
@@ -198,7 +208,7 @@ FQHEOnTorusMainTask::FQHEOnTorusMainTask(OptionManager* options, AbstractHilbert
     }
   else
     {
-      this->SpectralResponseEpsilon = false;
+      this->SpectralResponseEpsilon = 0.0;
     }
   if ((*options)["sr-omega-min"] != 0)
     {
@@ -206,7 +216,7 @@ FQHEOnTorusMainTask::FQHEOnTorusMainTask(OptionManager* options, AbstractHilbert
     }
   else
     {
-      this->SpectralResponseOmegaMin = false;
+      this->SpectralResponseOmegaMin = 0.0;
     }
   if ((*options)["sr-omega-max"] != 0)
     {
@@ -214,7 +224,7 @@ FQHEOnTorusMainTask::FQHEOnTorusMainTask(OptionManager* options, AbstractHilbert
     }
   else
     {
-      this->SpectralResponseOmegaMax = false;
+      this->SpectralResponseOmegaMax = 0.0;
     }
   if ((*options)["use-lapack"] != 0)
     {
@@ -706,7 +716,7 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 		  char* TmpName = new char [strlen(this->EigenvectorFileName) + 16];
                   sprintf (TmpName, "%s.omega_%g-%g_eps_%g.ni_%d.sr", this->EigenvectorFileName,SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon, CurrentNbrIterLanczos);
 	          ofstream File(TmpName, ios::out); 
-         	  Lanczos->SampleSpectralResponse(File, SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon);
+         	  Lanczos->SampleSpectralResponse(File, SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon, SpectralResponseNumberSteps);
 		  File.close();
 		  delete [] TmpName;
 		}
@@ -811,15 +821,15 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 		  cout << "eigenvectors can't be computed" << endl;
 		}
 	    }
-	    if (SpectralResponseInterval != 0)
-	      {
-	          char* TmpName = new char [strlen(this->EigenvectorFileName) + 16];
-		  sprintf (TmpName, "%s.omega_%g-%g_eps_%g.sr", this->EigenvectorFileName,SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon);
-		  ofstream File(TmpName, ios::out); 
-		  Lanczos->SampleSpectralResponse(File, SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon);
-		  File.close();
-		  delete [] TmpName;
-		}
+	  if (SpectralResponseInterval != 0)
+	    {
+		char* TmpName = new char [strlen(this->EigenvectorFileName) + 64];
+		sprintf (TmpName, "%s.omega_%g-%g_eps_%g.sr", this->EigenvectorFileName,SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon);
+		ofstream File(TmpName, ios::out); 
+		Lanczos->SampleSpectralResponse(File, SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon, SpectralResponseNumberSteps);
+		File.close();
+		delete [] TmpName;
+	     }
 	  gettimeofday (&(TotalEndingTime), 0);
 	  cout << "------------------------------------------------------------------" << endl << endl;;
 	  Dt = (double) (TotalEndingTime.tv_sec - TotalStartingTime.tv_sec) + 
@@ -1018,9 +1028,6 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 		  TotalCurrentTime.tv_sec = TotalEndingTime.tv_sec;
 		}
 	      cout << endl;
-	      cout << "before loop" << endl;
-	      cout << "SpectralResponseInterval = " << SpectralResponseInterval << endl;
-	      cout << "CurrentNbrIterLanczos = " << CurrentNbrIterLanczos << endl;
 	      if ((SpectralResponseInterval > 0)&&(CurrentNbrIterLanczos%SpectralResponseInterval == 0))
 	        {
 		  cout << "inside the loop" << endl;
@@ -1032,11 +1039,13 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 		  delete [] TmpName;
 		}
 	    }
+	    
 	  if ((Lanczos->TestConvergence() == true) && (CurrentNbrIterLanczos == 0))
 	    {
 	      TmpMatrix.Copy(Lanczos->GetDiagonalizedMatrix());
 	      TmpMatrix.SortMatrixUpOrder();
 	    }
+	    
 	  if (CurrentNbrIterLanczos >= this->MaxNbrIterLanczos)
 	    {
 	      cout << "too many Lanczos iterations" << endl;
@@ -1044,16 +1053,19 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 	      File.close();
 	      return 1;
 	    }
+	    
 	  GroundStateEnergy = Lowest;
 	  cout << endl;
 	  cout << (TmpMatrix.DiagonalElement(0) - this->EnergyShift) << " " << Lowest << " " << Precision << "  Nbr of iterations = " 
 	       << CurrentNbrIterLanczos << endl;
+	       
 	  for (int i = 0; i < this->NbrEigenvalue; ++i)
 	    {
 	      cout << (TmpMatrix.DiagonalElement(i) - this->EnergyShift) << " ";
 	      if  (this->ComputeEnergyFlag == false)
 		this->WriteResult(File, (TmpMatrix.DiagonalElement(i) - this->EnergyShift));
 	    }
+	    
 	  cout << endl;
 	  if ((this->EvaluateEigenvectors == true) && 
 	      (((this->DiskFlag == true) && (((this->MaximumAllowedTime == 0) && (CurrentNbrIterLanczos < this->NbrIterLanczos)) || 
@@ -1132,6 +1144,17 @@ int FQHEOnTorusMainTask::ExecuteMainTask()
 		  cout << "eigenvectors can't be computed" << endl;
 		}
 	    }
+	    
+	  if (SpectralResponseInterval != 0)
+	  {
+	      char* TmpName = new char [strlen(this->EigenvectorFileName) + 64];
+	      sprintf (TmpName, "%s.omega_%g-%g_eps_%g.sr", this->EigenvectorFileName,SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon);
+	      ofstream File(TmpName, ios::out);
+	      Lanczos->SampleSpectralResponse(File, SpectralResponseOmegaMin, SpectralResponseOmegaMax, SpectralResponseEpsilon, SpectralResponseNumberSteps);
+	      File.close();
+	      delete [] TmpName;
+	  }
+	  
 	  gettimeofday (&(TotalEndingTime), 0);
 	  cout << "------------------------------------------------------------------" << endl << endl;;
 	  Dt = (double) (TotalEndingTime.tv_sec - TotalStartingTime.tv_sec) + 

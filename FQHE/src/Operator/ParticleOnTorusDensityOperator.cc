@@ -6,7 +6,7 @@
 //                  Copyright (C) 2001-2002 Nicolas Regnault                  //
 //                                                                            //
 //                                                                            //
-//                 class of particle on sphere density operator               //
+//                 class of particle on torus density operator                //
 //                                                                            //
 //                        last modification : 11/12/2002                      //
 //                                                                            //
@@ -189,7 +189,7 @@ Complex ParticleOnTorusDensityOperator::PartialMatrixElement (RealVector& V1, Re
 	    }
 	}
      }
-  return Complex(Element);
+  return Complex(this->FormFactor*Element);
 }
   
 // multiply a vector by the current operator for a given range of indices 
@@ -204,6 +204,11 @@ Complex ParticleOnTorusDensityOperator::PartialMatrixElement (RealVector& V1, Re
 RealVector& ParticleOnTorusDensityOperator::LowLevelAddMultiply(RealVector& vSource, RealVector& vDestination, 
 								 int firstComponent, int nbrComponent)
 {
+  if (fabs(Imag(FormFactor))> 1e-12)
+  {
+    std::cerr << "Error: calling real multiplication routine in ParticleOnTorusDensityOperator for a complex valued operator"<<endl;
+    std::exit(1);
+  }
   if (((int) this->Particle->GetLargeHilbertSpaceDimension()) == this->Particle->GetHilbertSpaceDimension())
     {
       int Last = firstComponent + nbrComponent;;
@@ -211,7 +216,7 @@ RealVector& ParticleOnTorusDensityOperator::LowLevelAddMultiply(RealVector& vSou
 	{
 	  for (int i = firstComponent; i < Last; ++i)
 	    {
-	      vDestination[i] += vSource[i] * this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
+	      vDestination[i] += vSource[i] * Norm(this->FormFactor) * this->Particle->AdA(i, this->OperatorIndex);
 	    }
 	}
       else
@@ -222,7 +227,7 @@ RealVector& ParticleOnTorusDensityOperator::LowLevelAddMultiply(RealVector& vSou
 	    {
 	      TmpIndex =  this->Particle->AdA(i, this->OperatorIndexDagger, this->OperatorIndex, TmpCoefficient);
 	      if (TmpCoefficient != 0.0)
-		vDestination[TmpIndex] +=  vSource[i] * TmpCoefficient * FormFactor;
+		vDestination[TmpIndex] +=  vSource[i] * TmpCoefficient * Norm(this->FormFactor);
 	    }
 	}
     }
@@ -233,7 +238,7 @@ RealVector& ParticleOnTorusDensityOperator::LowLevelAddMultiply(RealVector& vSou
 	{
 	  for (long i = firstComponent; i < Last; ++i)
 	    {
-	      vDestination[i] += vSource[i] * this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
+	      vDestination[i] += vSource[i] * Norm(this->FormFactor) * this->Particle->AdA(i, this->OperatorIndex);
 	    }
 	}
       else
@@ -244,7 +249,7 @@ RealVector& ParticleOnTorusDensityOperator::LowLevelAddMultiply(RealVector& vSou
 	    {
 	      TmpIndex =  this->Particle->AdA(i, this->OperatorIndexDagger, this->OperatorIndex, TmpCoefficient);
 	      if (TmpCoefficient != 0.0)
-		vDestination[TmpIndex] +=  vSource[i] * TmpCoefficient * FormFactor;
+		vDestination[TmpIndex] +=  vSource[i] * TmpCoefficient * Norm(this->FormFactor);
 	    }
 	}
     }
@@ -264,6 +269,11 @@ RealVector& ParticleOnTorusDensityOperator::LowLevelAddMultiply(RealVector& vSou
 RealVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(RealVector* vSources, RealVector* vDestinations, int nbrVectors, 
 									 int firstComponent, int nbrComponent)
 {
+  if (fabs(Imag(FormFactor))> 1e-12)
+  {
+    std::cerr << "Error: calling real multiplication routine in ParticleOnTorusDensityOperator for a complex valued operator"<<endl;
+    std::exit(1);
+  }
   if (((int) this->Particle->GetLargeHilbertSpaceDimension()) == this->Particle->GetHilbertSpaceDimension())
     {
       int Last = firstComponent + nbrComponent;;
@@ -271,7 +281,7 @@ RealVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(RealVect
 	{
 	  for (int i = firstComponent; i < Last; ++i)
 	    {
-	      double TmpCoefficient = this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
+	      double TmpCoefficient = Norm(this->FormFactor) * this->Particle->AdA(i, this->OperatorIndex);
 	      for (int k = 0; k < nbrVectors; ++k)
 		{
 		  vDestinations[k][i] += vSources[k][i] * TmpCoefficient;
@@ -289,7 +299,7 @@ RealVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(RealVect
 		{
 		  for (int k = 0; k < nbrVectors; ++k)
 		    {
-		      vDestinations[k][TmpIndex] +=  vSources[k][i] * TmpCoefficient * FormFactor;
+		      vDestinations[k][TmpIndex] +=  vSources[k][i] * TmpCoefficient * Norm(this->FormFactor);
 		    }
 		}
 	    }
@@ -302,7 +312,7 @@ RealVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(RealVect
 	{
 	  for (long i = firstComponent; i < Last; ++i)
 	    {
-	      double TmpCoefficient = this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
+	      double TmpCoefficient = Norm(this->FormFactor) * this->Particle->AdA(i, this->OperatorIndex);
 	      for (int k = 0; k < nbrVectors; ++k)
 		{
 		  vDestinations[k][i] += vSources[k][i] * TmpCoefficient;
@@ -320,7 +330,7 @@ RealVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(RealVect
 		{
 		  for (int k = 0; k < nbrVectors; ++k)
 		    {
-		      vDestinations[k][TmpIndex] +=  vSources[k][i] * TmpCoefficient * FormFactor;
+		      vDestinations[k][TmpIndex] +=  vSources[k][i] * TmpCoefficient * Norm(this->FormFactor);
 		    }
 		}
 	    }
@@ -388,7 +398,7 @@ Complex ParticleOnTorusDensityOperator::PartialMatrixElement (ComplexVector& V1,
 	    }
 	}
      }
-  return Element;
+  return Element*FormFactor;
 }
   
 // multiply a vector by the current operator for a given range of indices 
@@ -472,7 +482,7 @@ ComplexVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(Compl
 	{
 	  for (int i = firstComponent; i < Last; ++i)
 	    {
-	      double TmpCoefficient = this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
+	      Complex TmpCoefficient = this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
 	      for (int k = 0; k < nbrVectors; ++k)
 		{
 		  vDestinations[k][i] += vSources[k][i] * TmpCoefficient;
@@ -503,7 +513,7 @@ ComplexVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(Compl
 	{
 	  for (long i = firstComponent; i < Last; ++i)
 	    {
-	      double TmpCoefficient = this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
+	      Complex TmpCoefficient = this->FormFactor * this->Particle->AdA(i, this->OperatorIndex);
 	      for (int k = 0; k < nbrVectors; ++k)
 		{
 		  vDestinations[k][i] += vSources[k][i] * TmpCoefficient;
@@ -534,39 +544,44 @@ ComplexVector* ParticleOnTorusDensityOperator::LowLevelMultipleAddMultiply(Compl
 //
 // return value = form factor
 
-double* ParticleOnTorusDensityOperator::CalculateFormFactor()
+void ParticleOnTorusDensityOperator::CalculateFormFactor()
 {  
   int nbrFluxQuanta=this->Particle->GetNbrOrbitals();
   
-  double Lx=sqrt(2*M_PI*nbrFluxQuanta/this->Ratio);
+  double Lx=sqrt(2.0*M_PI*nbrFluxQuanta/this->Ratio);
   const double invLx = 1.0 / Lx;
-  double Ly=sqrt(2*M_PI*nbrFluxQuanta*this->Ratio);
+  double Ly=sqrt(2.0*M_PI*nbrFluxQuanta*this->Ratio);
   const double invLy = 1.0 / Ly;
   
-  const double kxFactor=2*M_PI*invLx;
-  const double kyFactor=2*M_PI*invLy;
+  const double kxFactor=2.0*M_PI*invLx;
+  const double kyFactor=2.0*M_PI*invLy;
   const double qxFactor=kxFactor;
   
   int ky = this->OperatorIndex;
   int qx = this->Qx;
   int qy = (this->OperatorIndexDagger - this->OperatorIndex);
   
-  int m1=0,m2=0;
-  double numerator=0.0, denominator=0.0, exp1Plus=0, exp1Minus=0, exp2=0.0;
+  int m1=(int)(-qy*kyFactor/Lx);
+  int m2=m1+1;
+  Complex numerator=0.0, denominator=0.0, exp1Plus=0, exp1Minus=0, exp2=0.0;
   
-  while (exp1Plus>-34.5) //while terms are machine significant
+  while (exp1Plus>-34.5 || exp1Minus>-34.5) //while terms are machine significant
   {
-    exp1Plus=(SqrNorm((0.5*(m1*Lx-kyFactor*ky-kyFactor*(ky+qy)),-qxFactor*qx))-0.25*(m1*Lx+kyFactor*(ky+qy))*(m1*Lx+kyFactor*(ky+qy))-0.5*kyFactor*ky*kyFactor*ky); //numerator exponent with positive m
-    exp1Minus=(SqrNorm((0.5*(-m1*Lx-kyFactor*ky-kyFactor*(ky+qy)),-qxFactor*qx))-0.25*(-m1*Lx+kyFactor*(ky+qy))*(-m1*Lx+kyFactor*(ky+qy))-0.5*kyFactor*ky*kyFactor*ky); //numerator exponent with negative m
+    exp1Plus=(Complex(0.5*(m1*Lx+kyFactor*ky+kyFactor*(ky+qy)),-qxFactor*qx)*Complex(0.5*(m1*Lx+kyFactor*ky+kyFactor*(ky+qy)),-qxFactor*qx)
+	      -0.5*(m1*Lx+kyFactor*(ky+qy))*(m1*Lx+kyFactor*(ky+qy))-0.5*kyFactor*ky*kyFactor*ky); //numerator exponent with positive m
+    exp1Minus=(Complex(0.5*(m2*Lx+kyFactor*ky+kyFactor*(ky+qy)),-qxFactor*qx)*Complex(0.5*(m2*Lx+kyFactor*ky+kyFactor*(ky+qy)),-qxFactor*qx)
+	      -0.5*(m2*Lx+kyFactor*(ky+qy))*(m2*Lx+kyFactor*(ky+qy))-0.5*kyFactor*ky*kyFactor*ky); //numerator exponent with negative m
 
-    if (m1==0)
-      numerator+=exp(exp1Plus); //only one term at the origin
-    else
-      numerator+=exp(exp1Plus)+exp(exp1Minus); //sum symmetrically out from the origin
+    numerator+=exp(exp1Plus)+exp(exp1Minus); //sum symmetrically out from the origin
 
-    m1++;
+    cout << "numerator = " << numerator << endl;
+    
+    --m1;
+    ++m2;
+    
   }
   
+  m2=0;
   while (exp2>-34.5) //while terms are machine significant
   {
     exp2=-0.25*m2*m2*Lx*Lx; //denominator exponent
@@ -574,12 +589,16 @@ double* ParticleOnTorusDensityOperator::CalculateFormFactor()
     if (m2==0)
       denominator+=exp(exp2); //only one term at the origin
     else
-      denominator+=2*exp(exp2); //sum symmetrically out from the origin
+      denominator+=2.0*exp(exp2); //sum symmetrically out from the origin
  
+    cout << "denominator = " << denominator << endl;  
+    
     m2++;
   }
   
   this->FormFactor = numerator/denominator;
+  
+  cout << "FormFactor = " << FormFactor << endl;
 }
 
 

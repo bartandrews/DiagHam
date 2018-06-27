@@ -65,8 +65,10 @@ class FQHEOnTorusMainTask: public QHEOnDiskMainTask
   int Multiplicity;
   // pointer to an externally provided initial vector
   Vector *ExplicitInitialVector;
-  // calculate spectral response at every so many steps
+  // save spectral response at every so many steps
   int SpectralResponseInterval;
+  // number of points to be used in discretizing spectral response
+  int SpectralResponseNumberSteps;
   // small parameter to avoid the poles
   double SpectralResponseEpsilon;
   // minimum value of omega

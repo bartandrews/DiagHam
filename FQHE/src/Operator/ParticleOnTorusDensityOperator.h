@@ -64,7 +64,7 @@ class ParticleOnTorusDensityOperator : public ParticleOnSphereDensityOperator
   int Qx;
   
   // form factor for this Fourier component
-  double FormFactor;
+  Complex FormFactor;
   
  public:
   
@@ -72,6 +72,8 @@ class ParticleOnTorusDensityOperator : public ParticleOnSphereDensityOperator
   //
   // particle = hilbert space associated to the particles
   // index = index of the density operator
+  // ratio = aspect ratio of the torus
+  // qx = index of x-Fourier component of density operator
   ParticleOnTorusDensityOperator(ParticleOnTorus* particle, int index, int qx, double ratio=1.0);
 
   // constructor when dealing with two different Hilbert spaces
@@ -177,7 +179,7 @@ class ParticleOnTorusDensityOperator : public ParticleOnSphereDensityOperator
   // calculate the form factor for this fourier component
   //
   // return value = form factor
-  virtual double* CalculateFormFactor();
+  virtual void CalculateFormFactor();
 
 };
 

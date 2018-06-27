@@ -137,9 +137,10 @@ int main ( int argc, char** argv )
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-name", "interaction name (as it should appear in output files)", "unknown");
     (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-min", "spectral response omega min",0.0);
     (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-max", "spectral response omega max",10.0);
-    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-interval", "spectral response interval",100);
+    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-interval", "number of Lanczos iterations after which the spectral response is printed",100);
+    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-nbrsteps", "number of points to be used in discretizing spectral response",100);
     (*SystemGroup) += new SingleDoubleOption ('\n', "sr-epsilon", "spectral response epsilon",1E-6);
-
+    
     ( *PlotOptionGroup ) += new SingleStringOption ( '\n', "output", "output file ame (default output name replace the .vec extension of the input file with .rho or .rhorho)", 0 );
     
     (*PrecalculationGroup) += new SingleIntegerOption  ('m', "memory", "amount of memory that can be allocated for fast multiplication (in Mbytes)", 1024);
@@ -218,6 +219,7 @@ int main ( int argc, char** argv )
         cout << "can't open vector file " << Manager.GetString ( "state" ) << endl;
         return -1;
     }
+    ComplexVector *ComplexState = new ComplexVector(*RealState);
     
     char OutputFileName[1024];
     sprintf(OutputFileName,"%s.dat", OutputNamePrefix);
@@ -228,19 +230,21 @@ int main ( int argc, char** argv )
     Architecture.GetArchitecture()->SetDimension(Space->GetHilbertSpaceDimension());
     
     bool FirstRun=true;
+    // qx and qy are the Fourier modes of the density operator
     for (int qy=0;qy<NbrFluxQuanta;++qy)
       {
 
 	ParticleOnTorus* TargetSpace = GetHilbertSpace(Statistics, NbrParticles, NbrFluxQuanta, (Momentum+qy)%NbrFluxQuanta);
 	Space->SetTargetSpace(TargetSpace);
-	RealVector* TargetVector = new RealVector(TargetSpace->GetHilbertSpaceDimension(),true);
-	RealVector* TmpTargetVector = new RealVector(TargetSpace->GetHilbertSpaceDimension());
+	ComplexVector* TargetVector = new ComplexVector(TargetSpace->GetHilbertSpaceDimension(),true);
+	ComplexVector* TmpTargetVector = new ComplexVector(TargetSpace->GetHilbertSpaceDimension());
 	for (int qx=0;qx<NbrFluxQuanta;++qx)
 	{
+	  //ky labels momentum eigenstates on the torus
 	  for (int ky=0;ky<NbrFluxQuanta;++ky)
 	  {
 	    ParticleOnTorusDensityOperator Operator (Space,(ky+qy)%NbrFluxQuanta,ky,qx,Ratio);
-	    VectorOperatorMultiplyOperation Operation(&Operator,RealState,TmpTargetVector);
+	    VectorOperatorMultiplyOperation Operation(&Operator,ComplexState,TmpTargetVector);
 	    Operation.ApplyOperation(Architecture.GetArchitecture());
 	    (*TargetVector) += (*TmpTargetVector);
 	  }
