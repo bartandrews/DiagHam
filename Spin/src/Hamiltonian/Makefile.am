@@ -62,4 +62,16 @@ ShastrySutherlandAnd2DTranslationHamiltonian.cc \
 SpinChainAKLTStabilizerHamiltonian.cc \
 TwoDimensionalSquareLatticeSU3Hamiltonian.cc \
 TwoDimensionalSquareLatticeSU3And2DTranslationHamiltonian.cc \
-SpinChain4QbitsStabilizerHamiltonian.cc
+SpinChain4QbitsStabilizerHamiltonian.cc \
+TwoDimensionalHeisenbergHamiltonian.cc \
+TwoDimensionalHeisenbergAnd2DTranslationHamiltonian.cc \
+TwoDimensionalRRHamiltonian.cc \
+TwoDimensionalRRAnd2DTranslationHamiltonian.cc \
+PairHoppingHamiltonian.cc \
+PairHoppingHamiltonianWithTranslations.cc \
+PairHoppingRealHamiltonianWithTranslations.cc \
+SpinChainOBrienFendleyHamiltonianWithTranslations.cc \
+SpinChainOBrienFendleyRealHamiltonianWithTranslations.cc \
+Potts3ChainDualOBrienFendleyHamiltonian.cc \
+Potts3ChainDualOBrienFendleyHamiltonianWithTranslations.cc \
+Potts3ChainDualOBrienFendleyRealHamiltonianWithTranslations.cc

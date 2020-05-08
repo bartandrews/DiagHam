@@ -34,6 +34,7 @@
 #include "Vector/ComplexVector.h"
 #include "GeneralTools/StringTools.h"
 #include "GeneralTools/FilenameTools.h"
+#include "GeneralTools/ArrayTools.h"
 #include "HilbertSpace/UndescribedHilbertSpace.h"
 
 
@@ -51,8 +52,9 @@ using std::endl;
 // symmetricFlag = hamiltonian is stored using only the upper or lower triangular part
 // fortranIndices = indicates that indices use fortran convention (i.e. 1 based)
 // nbrSkippedLines = number of lines to skip in the input file
+// nosortRowIndices = if true, assume that the row indices are sorted from the smallest to the largest
 
-FileBasedHamiltonian::FileBasedHamiltonian(char* fileName, int elementColumnIndex, bool symmetricFlag, bool fortranIndices, int nbrSkippedLines)
+FileBasedHamiltonian::FileBasedHamiltonian(char* fileName, int elementColumnIndex, bool symmetricFlag, bool fortranIndices, int nbrSkippedLines, bool nosortRowIndices)
 {
   this->NbrElements = GetFileNbrLines(fileName);
   this->SymmetricStorageFlag = symmetricFlag;
@@ -123,6 +125,14 @@ FileBasedHamiltonian::FileBasedHamiltonian(char* fileName, int elementColumnInde
 	  ++HamiltonianDimension;
 	}
       this->HilbertSpace = new UndescribedHilbertSpace(HamiltonianDimension);
+    }
+  if (nosortRowIndices == false)
+    {
+      SortArrayUpOrdering<double>(this->RowIndices, this->ColumnIndices, this->MatrixElements, this->NbrElements);
+      // for (int i= 0; i < this->NbrElements; ++i)
+      // 	{
+      // 	  cout << i << " : " << this->RowIndices[i] << " " << this->ColumnIndices[i] << " : " << this->MatrixElements[i] << endl;
+      // 	}
     }
 }
 
@@ -207,10 +217,11 @@ Complex FileBasedHamiltonian::MatrixElement (ComplexVector& V1, ComplexVector& V
 RealVector& FileBasedHamiltonian::LowLevelAddMultiply(RealVector& vSource, RealVector& vDestination, 
 						     int firstComponent, int nbrComponent)
 {
-  long StartingIndex = 0;
-  long LastIndex = this->NbrElements - 1;
-  long MidIndex = 0;
-  while ((LastIndex - StartingIndex) > 1)
+  long StartingIndex = 0l;
+  long LastIndex = this->NbrElements - 1l;
+  long MidIndex = 0l;
+  int LastComponent = firstComponent + nbrComponent;
+  while ((LastIndex - StartingIndex) > 1l)
     {      
       MidIndex = (LastIndex + StartingIndex) >> 1;
       if (this->RowIndices[MidIndex] <= firstComponent)
@@ -218,17 +229,18 @@ RealVector& FileBasedHamiltonian::LowLevelAddMultiply(RealVector& vSource, RealV
       else
 	LastIndex = MidIndex;
     }
-  if (this->RowIndices[LastIndex] == firstComponent)
-    StartingIndex = LastIndex;
-  while ((StartingIndex >= 0) && (this->RowIndices[StartingIndex] == firstComponent))
-    --StartingIndex;
-  if (StartingIndex < 0)
-    StartingIndex = 0;
-  int LastComponent = firstComponent + nbrComponent;
-  while ((StartingIndex < this->NbrElements) && (this->RowIndices[StartingIndex] < LastComponent))
+  if ((this->RowIndices[LastIndex] == firstComponent) || (this->RowIndices[StartingIndex] == firstComponent))
     {
-      vDestination[this->ColumnIndices[StartingIndex]] += this->MatrixElements[StartingIndex] * vSource[this->RowIndices[StartingIndex]];
+      if (this->RowIndices[LastIndex] == firstComponent)
+	StartingIndex = LastIndex;
+      while ((StartingIndex >= 0l) && (this->RowIndices[StartingIndex] == firstComponent))
+	--StartingIndex;
       ++StartingIndex;
+      while ((StartingIndex < this->NbrElements) && (this->RowIndices[StartingIndex] < LastComponent))
+	{
+	  vDestination[this->ColumnIndices[StartingIndex]] += this->MatrixElements[StartingIndex] * vSource[this->RowIndices[StartingIndex]];
+	  ++StartingIndex;
+	}
     }
   if (this->HamiltonianShift != 0.0)
     {
@@ -250,10 +262,11 @@ RealVector& FileBasedHamiltonian::LowLevelAddMultiply(RealVector& vSource, RealV
 
 RealVector* FileBasedHamiltonian::LowLevelMultipleAddMultiply(RealVector* vSources, RealVector* vDestinations, int nbrVectors, int firstComponent, int nbrComponent)
 {
-  long StartingIndex = 0;
-  long LastIndex = this->NbrElements - 1;
-  long MidIndex = 0;
-  while ((LastIndex - StartingIndex) > 1)
+  long StartingIndex = 0l;
+  long LastIndex = this->NbrElements - 1l;
+  long MidIndex = 0l;
+  int LastComponent = firstComponent + nbrComponent;
+  while ((LastIndex - StartingIndex) > 1l)
     {      
       MidIndex = (LastIndex + StartingIndex) >> 1;
       if (this->RowIndices[MidIndex] <= firstComponent)
@@ -261,24 +274,25 @@ RealVector* FileBasedHamiltonian::LowLevelMultipleAddMultiply(RealVector* vSourc
       else
 	LastIndex = MidIndex;
     }
-  if (this->RowIndices[LastIndex] == firstComponent)
-    StartingIndex = LastIndex;
-  while ((StartingIndex >= 0) && (this->RowIndices[StartingIndex] == firstComponent))
-    --StartingIndex;
-  if (StartingIndex < 0)
-    StartingIndex = 0;
-  int LastComponent = firstComponent + nbrComponent;
-  double TmpMatrixElement;
-  int InputIndex;
-  int OutputIndex;
-  while ((StartingIndex < this->NbrElements) && (this->RowIndices[StartingIndex] < LastComponent))
+  if ((this->RowIndices[LastIndex] == firstComponent) || (this->RowIndices[StartingIndex] == firstComponent))
     {
-      TmpMatrixElement = this->MatrixElements[StartingIndex];
-      InputIndex = this->RowIndices[StartingIndex];
-      OutputIndex = this->ColumnIndices[StartingIndex];
-      for (int k= 0; k < nbrVectors; ++k)
-	vDestinations[k][OutputIndex] += TmpMatrixElement * vSources[k][InputIndex];
+      if (this->RowIndices[LastIndex] == firstComponent)
+	StartingIndex = LastIndex;
+      while ((StartingIndex >= 0l) && (this->RowIndices[StartingIndex] == firstComponent))
+	--StartingIndex;
       ++StartingIndex;
+      double TmpMatrixElement;
+      int InputIndex;
+      int OutputIndex;
+      while ((StartingIndex < this->NbrElements) && (this->RowIndices[StartingIndex] < LastComponent))
+	{
+	  TmpMatrixElement = this->MatrixElements[StartingIndex];
+	  InputIndex = this->RowIndices[StartingIndex];
+	  OutputIndex = this->ColumnIndices[StartingIndex];
+	  for (int k= 0; k < nbrVectors; ++k)
+	    vDestinations[k][OutputIndex] += TmpMatrixElement * vSources[k][InputIndex];
+	  ++StartingIndex;
+	}
     }
   if (this->HamiltonianShift != 0.0)
     {

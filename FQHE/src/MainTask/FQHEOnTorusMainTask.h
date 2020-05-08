@@ -65,17 +65,23 @@ class FQHEOnTorusMainTask: public QHEOnDiskMainTask
   int Multiplicity;
   // pointer to an externally provided initial vector
   Vector *ExplicitInitialVector;
+  
   // save spectral response at every so many steps
-  int SpectralResponseInterval;
-  // number of points to be used in discretizing spectral response
-  int SpectralResponseNumberSteps;
-  // small parameter to avoid the poles
-  double SpectralResponseEpsilon;
+  int SpectralResponseSaveInterval;
   // minimum value of omega
   double SpectralResponseOmegaMin;
   // maximum value of omega
   double SpectralResponseOmegaMax;
+   // small parameter to avoid the poles
+  double SpectralResponseEpsilon;
+  // omega step size
+  double SpectralResponseOmegaInterval;
+  // only print spectral response if difference between adjacent points > spectral resolution
+  double SpectralResponseSpectralResolution;
 
+  //  if non-zero, store the Hamiltonian as a binary file
+  char* ExportBinaryHamiltonian;
+  
   // pointer to Lanczos manager
   LanczosManager* AlgorithmManager;
 
@@ -94,9 +100,10 @@ class FQHEOnTorusMainTask: public QHEOnDiskMainTask
   // eigenvectorFileName = prefix to add to the name of each file that will contain an eigenvector
   // kxValue = set the Kx value (-1 if the hamiltonian does not handle the Kx symmetry)
   // explicitInitialVector = an optional pointer to an initial vector to be used in the Lanczos run, overriding command line arguments
+  // forceReal = assume that the hamiltonian is real even for kx>=0 (usually at the high symmetry points)
   FQHEOnTorusMainTask(OptionManager* options, AbstractHilbertSpace* space, LanczosManager* lanczos, 
 		      AbstractQHEHamiltonian* hamiltonian, int kyValue, double shift, char* outputFileName,
-		      bool firstRun = true, char* eigenvectorFileName = 0, int kxValue = -1, Vector *explicitInitialVector=NULL);
+		      bool firstRun = true, char* eigenvectorFileName = 0, int kxValue = -1, Vector *explicitInitialVector = NULL, bool forceReal = false);
   
   // destructor
   //  
@@ -127,7 +134,8 @@ class FQHEOnTorusMainTask: public QHEOnDiskMainTask
   // file = stream to write to
   // value = numerical value to be printed after columns for flux and momentum (if defined)
   // terminate = indicate if line should be terminated with endl
-  void WriteResult(ofstream& file, double value, bool terminate=true);
+  // return value = stream to write to
+  ofstream& WriteResult(ofstream& file, double value, bool terminate = true);
 
   // do the Hamiltonian diagonalization in a given Hilbert subspace
   //

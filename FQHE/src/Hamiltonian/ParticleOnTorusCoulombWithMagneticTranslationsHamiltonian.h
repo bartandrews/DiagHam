@@ -110,18 +110,18 @@ class ParticleOnTorusCoulombWithMagneticTranslationsHamiltonian : public Abstrac
   // set Hilbert space
   //
   // hilbertSpace = pointer to Hilbert space to use
-  void SetHilbertSpace (AbstractHilbertSpace* hilbertSpace);
+  virtual void SetHilbertSpace (AbstractHilbertSpace* hilbertSpace);
 
   // shift Hamiltonian from a given energy
   //
   // shift = shift value
-  void ShiftHamiltonian (double shift);
+  virtual void ShiftHamiltonian (double shift);
 
  protected:
  
   // evaluate all interaction factors
   //   
-  void EvaluateInteractionFactors();
+  virtual void EvaluateInteractionFactors();
 
   // evaluate the numerical coefficient  in front of the a+_m1 a+_m2 a_m3 a_m4 coupling term
   //
@@ -134,19 +134,19 @@ class ParticleOnTorusCoulombWithMagneticTranslationsHamiltonian : public Abstrac
 
   // get fourier transform of interaction
   // Q2_half = one half of q² value
-  double GetVofQ(double Q2_half);
+  virtual double GetVofQ(double Q2_half);
 
   // evaluate Wigner crystal energy per particle
   //
   // return value = Wigner crystal energy per particle
-  double EvaluateWignerCrystalEnergy ();
+  virtual double EvaluateWignerCrystalEnergy ();
 
   // evaluate Misra function (integral of t^n exp (-xt) between 1 and +inf)
   //
   // n = index of the Misra function
   // x = point where the function has to be evaluated (> 0)
   // return value = value of the n-Misra function at x
-  double MisraFunction (double n, double x);
+  virtual double MisraFunction (double n, double x);
 
   // evaluate part of the integral needed in the Misra function (integral of t^n exp (-xt) between min and max)
   //
@@ -156,7 +156,7 @@ class ParticleOnTorusCoulombWithMagneticTranslationsHamiltonian : public Abstrac
   // max = upper bound of the integral
   // nbrSubdivision = number of subdivision used for the integral
   // return value = value of the integral
-  double PartialMisraFunction (double n, double x, double min, double max, int nbrSubdivision);
+  virtual double PartialMisraFunction (double n, double x, double min, double max, int nbrSubdivision);
   
 
 };

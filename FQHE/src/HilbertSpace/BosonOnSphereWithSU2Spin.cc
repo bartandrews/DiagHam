@@ -105,8 +105,17 @@ BosonOnSphereWithSU2Spin::BosonOnSphereWithSU2Spin (int nbrBosons, int totalLz, 
   this->StateDescriptionSigma[0] = this->StateDescriptionUp;
   this->StateDescriptionSigma[1] = this->StateDescriptionDown;
   long TmpHilbertSpaceDimension = this->GenerateStates(this->NbrBosons, this->LzMax, (this->TotalLz + (this->NbrBosons * this->LzMax)) >> 1, 
-						       this->FermionicLzMax, this->FermionicLzMax, 0l);
+						       this->LzMax + this->NbrBosons + 1, this->LzMax + this->NbrBosons + 1, 0l);
 
+  for (long i = 0; i < TmpHilbertSpaceDimension; ++i)
+    {
+      unsigned long TmpState = this->StateDescriptionUp[i];
+      int TmpNbrUps = this->ComputeNbrParticles(this->StateDescriptionUp[i]);
+      this->StateDescriptionUp[i] >>= this->NbrBosons - TmpNbrUps; 
+      this->StateDescriptionDown[i] >>= TmpNbrUps; 
+    }
+  SortDoubleElementArrayDownOrdering<unsigned long>(this->StateDescriptionUp, this->StateDescriptionDown, TmpHilbertSpaceDimension);
+  
   if (TmpHilbertSpaceDimension != this->LargeHilbertSpaceDimension)
     {
       cout << TmpHilbertSpaceDimension << " " << this->LargeHilbertSpaceDimension << endl;
@@ -184,8 +193,6 @@ BosonOnSphereWithSU2Spin::BosonOnSphereWithSU2Spin (int nbrBosons, int totalLz, 
   this->StateDescriptionSigma[1] = this->StateDescriptionDown;
   long TmpHilbertSpaceDimension = this->GenerateStates(this->NbrBosons, this->LzMax, this->LzMax, (this->TotalLz + (this->NbrBosons * this->LzMax)) >> 1, 
 						       this->NbrBosonsUp, this->NbrBosonsDown, 0l);
-//   for (int i = 0; i < TmpHilbertSpaceDimension; ++i)
-//     cout << i << " : " << hex << this->StateDescriptionUp[i] << " " << this->StateDescriptionDown[i] << dec << endl;
   if (TmpHilbertSpaceDimension != this->LargeHilbertSpaceDimension)
     {
       cout << TmpHilbertSpaceDimension << " " << this->LargeHilbertSpaceDimension << endl;
@@ -671,13 +678,18 @@ long BosonOnSphereWithSU2Spin::GenerateStates(int nbrBosons, int lzMaxUp, int lz
 long BosonOnSphereWithSU2Spin::GenerateStates(int nbrBosons, int lzMax, int totalLz, 
 					      int currentFermionicPositionUp, int currentFermionicPositionDown, long pos)
 {
-  if ((nbrBosons < 0) || (totalLz < 0))
-    return pos;
-  if ((nbrBosons == 0) && (totalLz == 0))
+  if (nbrBosons == 0)
     {
-      this->StateDescriptionUp[pos] = 0x0ul;
-      this->StateDescriptionDown[pos] = 0x0ul;
-      return (pos + 1l);
+      if (totalLz == 0)
+	{
+	  this->StateDescriptionUp[pos] = 0x0ul;
+	  this->StateDescriptionDown[pos] = 0x0ul;
+	  return (pos + 1l);
+	}
+      else
+	{
+	  return pos;
+	}
     }
   if (lzMax < 0)
     return pos;
@@ -1174,6 +1186,58 @@ bool BosonOnSphereWithSU2Spin::ReadHilbertSpace (char* fileName)
 // firstComponent = index of the first component to compute in initialState
 // nbrComponents = number of consecutive components to compute
 
+void BosonOnSphereWithSU2Spin::TransformOneBodyBasis(RealVector& initialState, RealVector& targetState, RealMatrix* oneBodyBasis, long firstComponent, long nbrComponents)
+{
+  int* TmpMomentumIndices = new int [this->NbrBosons];
+  int* TmpSU2Indices = new int [this->NbrBosons];
+  int* TmpSU2Indices2 = new int [this->NbrBosons];
+  double* OccupationCoefficientArray = new double [this->NbrBosons + 1];
+  OccupationCoefficientArray[0] = 0.0;
+  for (int i = 1; i <= this->NbrBosons; ++i)
+    OccupationCoefficientArray[i] = OccupationCoefficientArray[i - 1] + 0.5 * log((double) i);
+  targetState.ClearVector();
+  long LastComponent = firstComponent + nbrComponents;
+  if (nbrComponents == 0)
+    LastComponent = this->LargeHilbertSpaceDimension;
+  for (long i = firstComponent; i < LastComponent; ++i)
+    {
+      this->FermionToBoson(this->StateDescriptionUp[i], this->StateDescriptionDown[i],
+			   this->TemporaryStateUp, this->TemporaryStateDown); 
+      double OccupationCoefficient = 0.0;
+      int TmpIndex = 0;
+      for (int j = this->LzMax; j >= 0; --j)
+	{
+	  for (int l = 0; l < this->TemporaryStateDown[j]; ++l)
+	    {
+	      TmpMomentumIndices[TmpIndex] = j;
+	      TmpSU2Indices[TmpIndex] = 1;
+	      ++TmpIndex;	      
+	    }
+	  for (int l = 0; l < this->TemporaryStateUp[j]; ++l)
+	    {
+	      TmpMomentumIndices[TmpIndex] = j;
+	      TmpSU2Indices[TmpIndex] = 0;
+	      ++TmpIndex;	      
+	    }
+	  OccupationCoefficient -= OccupationCoefficientArray[this->TemporaryStateUp[j]];
+	  OccupationCoefficient -= OccupationCoefficientArray[this->TemporaryStateDown[j]];
+	}
+      this->TransformOneBodyBasisRecursive(targetState, initialState[i], 0, TmpMomentumIndices, TmpSU2Indices, TmpSU2Indices2, oneBodyBasis, OccupationCoefficient, OccupationCoefficientArray);
+    }
+  delete[] OccupationCoefficientArray;
+  delete[] TmpMomentumIndices;
+  delete[] TmpSU2Indices;
+  delete[] TmpSU2Indices2;
+}
+
+// convert a state from one SU(2) basis to another, transforming the one body basis in each momentum sector
+//
+// initialState = state to transform  
+// targetState = vector where the transformed state has to be stored
+// oneBodyBasis = array that gives the unitary matrices associated to each one body transformation, one per momentum sector
+// firstComponent = index of the first component to compute in initialState
+// nbrComponents = number of consecutive components to compute
+
 void BosonOnSphereWithSU2Spin::TransformOneBodyBasis(ComplexVector& initialState, ComplexVector& targetState, ComplexMatrix* oneBodyBasis, long firstComponent, long nbrComponents)
 {
   int* TmpMomentumIndices = new int [this->NbrBosons];
@@ -1278,6 +1342,63 @@ ComplexMatrix BosonOnSphereWithSU2Spin::TransformationMatrixOneBodyBasis(Complex
 // occupationCoefficient = invert of the coefficient that comes from the initial state occupation number 
 // occupationCoefficientArray = array that provides 1/2 ln (N!)
 
+void BosonOnSphereWithSU2Spin::TransformOneBodyBasisRecursive(RealVector& targetState, double coefficient,
+							      int position, int* momentumIndices, int* initialSU2Indices, int* currentSU2Indices, RealMatrix* oneBodyBasis,
+							      double occupationCoefficient, double* occupationCoefficientArray) 
+{
+  if (position == this->NbrBosons)
+    {
+      for (int i = 0; i <= this->LzMax; ++i)
+	{
+	  this->TemporaryStateUp[i] = 0ul;
+	  this->TemporaryStateDown[i] = 0ul;
+	}
+      for (int i = 0; i < this->NbrBosons; ++i)
+	{
+	  switch (currentSU2Indices[i])
+	    {
+	    case 0:
+	      this->TemporaryStateUp[momentumIndices[i]]++;
+	      break;
+	    case 1:
+	      this->TemporaryStateDown[momentumIndices[i]]++;
+	      break;
+	    }
+	}
+      int Index = this->FindStateIndex(this->TemporaryStateUp, this->TemporaryStateDown);
+      if (Index < this->HilbertSpaceDimension)
+	{
+	  
+	  for (int i = 0; i <= this->LzMax; ++i)
+	    {
+	      occupationCoefficient += occupationCoefficientArray[this->TemporaryStateUp[i]];
+	      occupationCoefficient += occupationCoefficientArray[this->TemporaryStateDown[i]];
+	    }
+	  targetState[Index] += coefficient * exp (occupationCoefficient);
+	}
+      return;      
+    }
+  else
+    {
+      currentSU2Indices[position] = 0;
+      this->TransformOneBodyBasisRecursive(targetState, coefficient * (oneBodyBasis[momentumIndices[position]][1 - initialSU2Indices[position]][1]), position + 1, momentumIndices, initialSU2Indices, currentSU2Indices, oneBodyBasis, occupationCoefficient, occupationCoefficientArray);
+      currentSU2Indices[position] = 1;
+      this->TransformOneBodyBasisRecursive(targetState, coefficient * (oneBodyBasis[momentumIndices[position]][1 - initialSU2Indices[position]][0]), position + 1, momentumIndices, initialSU2Indices, currentSU2Indices, oneBodyBasis, occupationCoefficient, occupationCoefficientArray);
+    }
+}
+
+// recursive part of the convertion from a state from one SU(2) basis to another, transforming the one body basis in each momentum sector
+//
+// targetState = vector where the transformed state has to be stored
+// coefficient = current coefficient to assign
+// position = current particle consider in the n-body state
+// momentumIndices = array that gives the momentum partition of the initial n-body state
+// initialSU2Indices = array that gives the spin dressing the initial n-body state
+// currentSU2Indices = array that gives the spin dressing the current transformed n-body state
+// oneBodyBasis = array that gives the unitary matrices associated to each one body transformation, one per momentum sector
+// occupationCoefficient = invert of the coefficient that comes from the initial state occupation number 
+// occupationCoefficientArray = array that provides 1/2 ln (N!)
+
 void BosonOnSphereWithSU2Spin::TransformOneBodyBasisRecursive(ComplexVector& targetState, Complex coefficient,
 							      int position, int* momentumIndices, int* initialSU2Indices, int* currentSU2Indices, ComplexMatrix* oneBodyBasis,
 							      double occupationCoefficient, double* occupationCoefficientArray) 
@@ -1360,6 +1481,58 @@ ComplexMatrix BosonOnSphereWithSU2Spin::TransformationMatrixSU2ToU1(BosonOnSpher
 	}
     }
   return TmpMatrix;
+}
+
+// convert state of a SU(2) Hilbert space with fixed Sz to a SU(2) space with all sz sectors
+//
+// state = state that needs to be projected
+// su2space = SU(2) space with fixed sz of the input state
+// return value = input state expression in the SU(2) basis
+
+RealVector BosonOnSphereWithSU2Spin::SU2ToSU2AllSz(RealVector& state, ParticleOnSphereWithSpin* su2space)
+{
+  RealVector TmpVector (this->LargeHilbertSpaceDimension, true);
+  BosonOnSphereWithSU2Spin* InputSpace = (BosonOnSphereWithSU2Spin*) su2space;
+  unsigned long TmpStateUp;
+  unsigned long TmpStateDown;
+  for (long i = 0; i < InputSpace->LargeHilbertSpaceDimension; ++i)
+    {
+      this->FermionToBoson(InputSpace->StateDescriptionUp[i], InputSpace->NUpLzMax, this->ProdATemporaryStateUp);
+      this->FermionToBoson(InputSpace->StateDescriptionDown[i], InputSpace->NDownLzMax, this->ProdATemporaryStateDown);
+      this->TargetSpace->BosonToFermion(this->ProdATemporaryStateUp, this->ProdATemporaryStateDown, TmpStateUp, TmpStateDown);
+      int TmpIndex = this->TargetSpace->FindStateIndex(TmpStateUp, TmpStateDown);
+      if (TmpIndex < this->HilbertSpaceDimension)
+	{
+	  TmpVector[TmpIndex] = state[i];
+	}
+    }
+  return TmpVector;
+}
+
+// convert state of a SU(2) Hilbert space with fixed Sz to a SU(2) space with all sz sectors
+//
+// state = state that needs to be projected
+// su2space = SU(2) space with fixed sz of the input state
+// return value = input state expression in the SU(2) basis
+
+ComplexVector BosonOnSphereWithSU2Spin::SU2ToSU2AllSz(ComplexVector& state, ParticleOnSphereWithSpin* su2space)
+{
+  ComplexVector TmpVector (this->LargeHilbertSpaceDimension, true);
+  BosonOnSphereWithSU2Spin* InputSpace = (BosonOnSphereWithSU2Spin*) su2space;
+  unsigned long TmpStateUp;
+  unsigned long TmpStateDown;
+  for (long i = 0; i < InputSpace->LargeHilbertSpaceDimension; ++i)
+    {
+      this->FermionToBoson(InputSpace->StateDescriptionUp[i], InputSpace->NUpLzMax, this->ProdATemporaryStateUp);
+      this->FermionToBoson(InputSpace->StateDescriptionDown[i], InputSpace->NDownLzMax, this->ProdATemporaryStateDown);
+      this->TargetSpace->BosonToFermion(this->ProdATemporaryStateUp, this->ProdATemporaryStateDown, TmpStateUp, TmpStateDown);
+      int TmpIndex = this->TargetSpace->FindStateIndex(TmpStateUp, TmpStateDown);
+      if (TmpIndex < this->HilbertSpaceDimension)
+	{
+	  TmpVector[TmpIndex] = state[i];
+	}
+    }
+  return TmpVector;
 }
 
 // convert a state such that its components are now expressed in the unnormalized basis
@@ -3655,10 +3828,13 @@ RealMatrix BosonOnSphereWithSU2Spin::EvaluateEntanglementMatrixGenericRealSpaceP
 
 
   BosonOnSphereWithSU2SpinAllLz* TotalSubsystemSpace = new BosonOnSphereWithSU2SpinAllLz(nbrParticleSector, nbrOrbitalA - 1, szSector);
-  BosonOnSphereWithSU2SpinAllLz* TotalComplementarySubsytemSpace = new BosonOnSphereWithSU2SpinAllLz(ComplementaryNbrParticles, nbrOrbitalB - 1, ComplementarySzSector);
+  BosonOnSphereWithSU2SpinAllLz* TotalComplementarySubsystemSpace = new BosonOnSphereWithSU2SpinAllLz(ComplementaryNbrParticles, nbrOrbitalB - 1, ComplementarySzSector);
 
-  BosonOnSphereWithSU2Spin** SubsytemSpaces = new BosonOnSphereWithSU2Spin* [nbrEntanglementMatrices];
-  BosonOnSphereWithSU2Spin** ComplementarySubsytemSpaces = new BosonOnSphereWithSU2Spin* [nbrEntanglementMatrices];
+  cout << "size of the full entanglement matrix " << TotalSubsystemSpace->GetHilbertSpaceDimension() << " x " << TotalComplementarySubsystemSpace->GetHilbertSpaceDimension()
+       << " (requiring  " << (((double) TotalSubsystemSpace->GetHilbertSpaceDimension()) * ((double) TotalComplementarySubsystemSpace->GetHilbertSpaceDimension())/ 131072.0) << " Mb )" << endl;
+
+  BosonOnSphereWithSU2Spin** SubsystemSpaces = new BosonOnSphereWithSU2Spin* [nbrEntanglementMatrices];
+  BosonOnSphereWithSU2Spin** ComplementarySubsystemSpaces = new BosonOnSphereWithSU2Spin* [nbrEntanglementMatrices];
   int TotalLzDisk = ConvertLzFromSphereToDisk(this->TotalLz, this->NbrBosons, this->LzMax);  
   
   for (int i = 0; i < nbrEntanglementMatrices; ++i)
@@ -3666,11 +3842,11 @@ RealMatrix BosonOnSphereWithSU2Spin::EvaluateEntanglementMatrixGenericRealSpaceP
       int LzADisk = ConvertLzFromSphereToDisk(entanglementMatrixLzSectors[i], nbrParticleSector, nbrOrbitalA - 1);
       int LzBDisk = (TotalLzDisk - LzADisk) - ComplementaryNbrParticles * (this->LzMax + 1 - nbrOrbitalB);
       int ComplementaryLzSector = ConvertLzFromDiskToSphere(LzBDisk, ComplementaryNbrParticles, nbrOrbitalB - 1);
-      SubsytemSpaces[i] = new BosonOnSphereWithSU2Spin(nbrParticleSector, entanglementMatrixLzSectors[i], nbrOrbitalA - 1, szSector);
-      ComplementarySubsytemSpaces[i] = new BosonOnSphereWithSU2Spin(ComplementaryNbrParticles, ComplementaryLzSector, nbrOrbitalB - 1, ComplementarySzSector);
+      SubsystemSpaces[i] = new BosonOnSphereWithSU2Spin(nbrParticleSector, entanglementMatrixLzSectors[i], nbrOrbitalA - 1, szSector);
+      ComplementarySubsystemSpaces[i] = new BosonOnSphereWithSU2Spin(ComplementaryNbrParticles, ComplementaryLzSector, nbrOrbitalB - 1, ComplementarySzSector);
     }
 
-  RealMatrix TmpEntanglementMatrix (TotalSubsystemSpace->GetHilbertSpaceDimension(), TotalComplementarySubsytemSpace->GetHilbertSpaceDimension(), true);
+  RealMatrix TmpEntanglementMatrix (TotalSubsystemSpace->GetHilbertSpaceDimension(), TotalComplementarySubsystemSpace->GetHilbertSpaceDimension(), true);
 
   unsigned long* TmpComplementaryMonomialUp1 = new unsigned long [ComplementaryNbrParticles];
   unsigned long* TmpComplementaryMonomialDown1 = new unsigned long [ComplementaryNbrParticles];
@@ -3681,14 +3857,14 @@ RealMatrix BosonOnSphereWithSU2Spin::EvaluateEntanglementMatrixGenericRealSpaceP
   unsigned long* TmpMonomialUp2 = new unsigned long [nbrParticleSector];
   unsigned long* TmpMonomialDown2 = new unsigned long [nbrParticleSector];
 
-  int SubsytemNbrUp = SubsytemSpaces[0]->NbrBosonsUp;
-  int SubsytemNbrDown = SubsytemSpaces[0]->NbrBosonsDown;
-  int ComplementarySubsytemNbrUp = ComplementarySubsytemSpaces[0]->NbrBosonsUp;
-  int ComplementarySubsytemNbrDown = ComplementarySubsytemSpaces[0]->NbrBosonsDown;
-  RealMatrix TmpSubsytemPermanentMatrixUp (SubsytemNbrUp, SubsytemNbrUp);
-  RealMatrix TmpSubsytemPermanentMatrixDown (SubsytemNbrDown, SubsytemNbrDown);
-  RealMatrix TmpComplementarySubsytemPermanentMatrixUp (ComplementarySubsytemNbrUp, ComplementarySubsytemNbrUp);
-  RealMatrix TmpComplementarySubsytemPermanentMatrixDown (ComplementarySubsytemNbrDown, ComplementarySubsytemNbrDown);
+  int SubsystemNbrUp = SubsystemSpaces[0]->NbrBosonsUp;
+  int SubsystemNbrDown = SubsystemSpaces[0]->NbrBosonsDown;
+  int ComplementarySubsystemNbrUp = ComplementarySubsystemSpaces[0]->NbrBosonsUp;
+  int ComplementarySubsystemNbrDown = ComplementarySubsystemSpaces[0]->NbrBosonsDown;
+  RealMatrix TmpSubsystemPermanentMatrixUp (SubsystemNbrUp, SubsystemNbrUp);
+  RealMatrix TmpSubsystemPermanentMatrixDown (SubsystemNbrDown, SubsystemNbrDown);
+  RealMatrix TmpComplementarySubsystemPermanentMatrixUp (ComplementarySubsystemNbrUp, ComplementarySubsystemNbrUp);
+  RealMatrix TmpComplementarySubsystemPermanentMatrixDown (ComplementarySubsystemNbrDown, ComplementarySubsystemNbrDown);
 
   double* LogFactorials = new double[this->NbrBosons + 1];
   LogFactorials[0] = 0.0;
@@ -3696,67 +3872,67 @@ RealMatrix BosonOnSphereWithSU2Spin::EvaluateEntanglementMatrixGenericRealSpaceP
   for (int i = 2 ; i <= this->NbrBosons; ++i)
     LogFactorials[i] = LogFactorials[i - 1] + log((double) i); 
 
-  double* TotalSubsytemOccupationFactors = new double[TotalSubsystemSpace->GetHilbertSpaceDimension()];
-  unsigned long* TmpSubsytemSpaceOccupationNumbersUp = new unsigned long [TotalSubsystemSpace->NbrLzValue];
-  unsigned long* TmpSubsytemSpaceOccupationNumbersDown = new unsigned long [TotalSubsystemSpace->NbrLzValue];
+  double* TotalSubsystemOccupationFactors = new double[TotalSubsystemSpace->GetHilbertSpaceDimension()];
+  unsigned long* TmpSubsystemSpaceOccupationNumbersUp = new unsigned long [TotalSubsystemSpace->NbrLzValue];
+  unsigned long* TmpSubsystemSpaceOccupationNumbersDown = new unsigned long [TotalSubsystemSpace->NbrLzValue];
   for (int i = 0; i < TotalSubsystemSpace->HilbertSpaceDimension; ++i)
     {
       TotalSubsystemSpace->FermionToBoson(TotalSubsystemSpace->StateDescriptionUp[i], TotalSubsystemSpace->StateDescriptionDown[i], 
-					  TmpSubsytemSpaceOccupationNumbersUp, TmpSubsytemSpaceOccupationNumbersDown);
+					  TmpSubsystemSpaceOccupationNumbersUp, TmpSubsystemSpaceOccupationNumbersDown);
       double TmpFactor = 0.0;
       for (int k = 0; k <= TotalSubsystemSpace->LzMax; ++k)
 	{
-	  TmpFactor += LogFactorials[TmpSubsytemSpaceOccupationNumbersUp[k]];
-	  TmpFactor += LogFactorials[TmpSubsytemSpaceOccupationNumbersDown[k]];
+	  TmpFactor += LogFactorials[TmpSubsystemSpaceOccupationNumbersUp[k]];
+	  TmpFactor += LogFactorials[TmpSubsystemSpaceOccupationNumbersDown[k]];
 	}
-      TotalSubsytemOccupationFactors[i] = TmpFactor;      
+      TotalSubsystemOccupationFactors[i] = TmpFactor;      
     }
-  double* TotalComplementarySubsytemOccupationFactors = new double[TotalComplementarySubsytemSpace->GetHilbertSpaceDimension()];
-  unsigned long* TmpComplementarySubsytemSpaceOccupationNumbersUp = new unsigned long [TotalComplementarySubsytemSpace->NbrLzValue];
-  unsigned long* TmpComplementarySubsytemSpaceOccupationNumbersDown = new unsigned long [TotalComplementarySubsytemSpace->NbrLzValue];
-  for (int i = 0; i <  TotalComplementarySubsytemSpace->GetHilbertSpaceDimension(); ++i)
+  double* TotalComplementarySubsystemOccupationFactors = new double[TotalComplementarySubsystemSpace->GetHilbertSpaceDimension()];
+  unsigned long* TmpComplementarySubsystemSpaceOccupationNumbersUp = new unsigned long [TotalComplementarySubsystemSpace->NbrLzValue];
+  unsigned long* TmpComplementarySubsystemSpaceOccupationNumbersDown = new unsigned long [TotalComplementarySubsystemSpace->NbrLzValue];
+  for (int i = 0; i <  TotalComplementarySubsystemSpace->GetHilbertSpaceDimension(); ++i)
     {
-      TotalComplementarySubsytemSpace->FermionToBoson(TotalComplementarySubsytemSpace->StateDescriptionUp[i], TotalComplementarySubsytemSpace->StateDescriptionDown[i], 
-						      TmpComplementarySubsytemSpaceOccupationNumbersUp, TmpComplementarySubsytemSpaceOccupationNumbersDown);
+      TotalComplementarySubsystemSpace->FermionToBoson(TotalComplementarySubsystemSpace->StateDescriptionUp[i], TotalComplementarySubsystemSpace->StateDescriptionDown[i], 
+						      TmpComplementarySubsystemSpaceOccupationNumbersUp, TmpComplementarySubsystemSpaceOccupationNumbersDown);
       double TmpFactor = 0.0;
-      for (int k = 0; k <= TotalComplementarySubsytemSpace->LzMax; ++k)
+      for (int k = 0; k <= TotalComplementarySubsystemSpace->LzMax; ++k)
 	{
-	  TmpFactor += LogFactorials[TmpComplementarySubsytemSpaceOccupationNumbersUp[k]];
-	  TmpFactor += LogFactorials[TmpComplementarySubsytemSpaceOccupationNumbersDown[k]];
+	  TmpFactor += LogFactorials[TmpComplementarySubsystemSpaceOccupationNumbersUp[k]];
+	  TmpFactor += LogFactorials[TmpComplementarySubsystemSpaceOccupationNumbersDown[k]];
 	}
-      TotalComplementarySubsytemOccupationFactors[i] = TmpFactor;      
+      TotalComplementarySubsystemOccupationFactors[i] = TmpFactor;      
     }
-  double** TotalAllSubsytemOccupationFactors = new double*[nbrEntanglementMatrices];
-  double** TotalAllComplementarySubsytemOccupationFactors = new double*[nbrEntanglementMatrices];
+  double** TotalAllSubsystemOccupationFactors = new double*[nbrEntanglementMatrices];
+  double** TotalAllComplementarySubsystemOccupationFactors = new double*[nbrEntanglementMatrices];
   for (int i = 0; i < nbrEntanglementMatrices; ++i)
     {
-      TotalAllComplementarySubsytemOccupationFactors[i] = new double[ComplementarySubsytemSpaces[i]->GetHilbertSpaceDimension()];
-      for (int TmpComplementarySubsytemIndex = 0; TmpComplementarySubsytemIndex <  ComplementarySubsytemSpaces[i]->GetHilbertSpaceDimension(); ++TmpComplementarySubsytemIndex)
+      TotalAllComplementarySubsystemOccupationFactors[i] = new double[ComplementarySubsystemSpaces[i]->GetHilbertSpaceDimension()];
+      for (int TmpComplementarySubsystemIndex = 0; TmpComplementarySubsystemIndex <  ComplementarySubsystemSpaces[i]->GetHilbertSpaceDimension(); ++TmpComplementarySubsystemIndex)
 	{
-	  ComplementarySubsytemSpaces[i]->FermionToBoson(ComplementarySubsytemSpaces[i]->StateDescriptionUp[TmpComplementarySubsytemIndex], 
-							 ComplementarySubsytemSpaces[i]->StateDescriptionDown[TmpComplementarySubsytemIndex], 
-							 TmpComplementarySubsytemSpaceOccupationNumbersUp, TmpComplementarySubsytemSpaceOccupationNumbersDown);
+	  ComplementarySubsystemSpaces[i]->FermionToBoson(ComplementarySubsystemSpaces[i]->StateDescriptionUp[TmpComplementarySubsystemIndex], 
+							 ComplementarySubsystemSpaces[i]->StateDescriptionDown[TmpComplementarySubsystemIndex], 
+							 TmpComplementarySubsystemSpaceOccupationNumbersUp, TmpComplementarySubsystemSpaceOccupationNumbersDown);
 	  double TmpFactor = 0.0;
-	  for (int k = 0; k <= ComplementarySubsytemSpaces[i]->LzMax; ++k)
+	  for (int k = 0; k <= ComplementarySubsystemSpaces[i]->LzMax; ++k)
 	    {
-	      TmpFactor += LogFactorials[TmpComplementarySubsytemSpaceOccupationNumbersUp[k]];
-	      TmpFactor += LogFactorials[TmpComplementarySubsytemSpaceOccupationNumbersDown[k]];
+	      TmpFactor += LogFactorials[TmpComplementarySubsystemSpaceOccupationNumbersUp[k]];
+	      TmpFactor += LogFactorials[TmpComplementarySubsystemSpaceOccupationNumbersDown[k]];
 	    }
-	  TotalAllComplementarySubsytemOccupationFactors[i][TmpComplementarySubsytemIndex] = TmpFactor;      
+	  TotalAllComplementarySubsystemOccupationFactors[i][TmpComplementarySubsystemIndex] = TmpFactor;      
 	}
-      TotalAllSubsytemOccupationFactors[i] = new double[SubsytemSpaces[i]->GetHilbertSpaceDimension()];
-      for (int TmpSubsytemIndex = 0; TmpSubsytemIndex <  SubsytemSpaces[i]->GetHilbertSpaceDimension(); ++TmpSubsytemIndex)
+      TotalAllSubsystemOccupationFactors[i] = new double[SubsystemSpaces[i]->GetHilbertSpaceDimension()];
+      for (int TmpSubsystemIndex = 0; TmpSubsystemIndex <  SubsystemSpaces[i]->GetHilbertSpaceDimension(); ++TmpSubsystemIndex)
 	{
-	  SubsytemSpaces[i]->FermionToBoson(SubsytemSpaces[i]->StateDescriptionUp[TmpSubsytemIndex], 
-					    SubsytemSpaces[i]->StateDescriptionDown[TmpSubsytemIndex], 
-					    TmpSubsytemSpaceOccupationNumbersUp, TmpSubsytemSpaceOccupationNumbersDown);
+	  SubsystemSpaces[i]->FermionToBoson(SubsystemSpaces[i]->StateDescriptionUp[TmpSubsystemIndex], 
+					    SubsystemSpaces[i]->StateDescriptionDown[TmpSubsystemIndex], 
+					    TmpSubsystemSpaceOccupationNumbersUp, TmpSubsystemSpaceOccupationNumbersDown);
 	  double TmpFactor = 0.0;
-	  for (int k = 0; k <= SubsytemSpaces[i]->LzMax; ++k)
+	  for (int k = 0; k <= SubsystemSpaces[i]->LzMax; ++k)
 	    {
-	      TmpFactor += LogFactorials[TmpSubsytemSpaceOccupationNumbersUp[k]];
-	      TmpFactor += LogFactorials[TmpSubsytemSpaceOccupationNumbersDown[k]];
+	      TmpFactor += LogFactorials[TmpSubsystemSpaceOccupationNumbersUp[k]];
+	      TmpFactor += LogFactorials[TmpSubsystemSpaceOccupationNumbersDown[k]];
 	    }
-	  TotalAllSubsytemOccupationFactors[i][TmpSubsytemIndex] = TmpFactor;      
+	  TotalAllSubsystemOccupationFactors[i][TmpSubsystemIndex] = TmpFactor;      
 	}
     }
 
@@ -3764,105 +3940,109 @@ RealMatrix BosonOnSphereWithSU2Spin::EvaluateEntanglementMatrixGenericRealSpaceP
 
   for (int i = 0; i < nbrEntanglementMatrices; ++i)
     {
-      RealMatrix TmpComplementaryTransformationMatrix (ComplementarySubsytemSpaces[i]->GetHilbertSpaceDimension(), TotalComplementarySubsytemSpace->GetHilbertSpaceDimension(), true);
-      for (int TmpComplementarySubsytemIndex = 0; TmpComplementarySubsytemIndex <  ComplementarySubsytemSpaces[i]->GetHilbertSpaceDimension(); ++TmpComplementarySubsytemIndex)
+      cout << "size of the B tranformation matrix " << ComplementarySubsystemSpaces[i]->GetHilbertSpaceDimension() << " x " << TotalComplementarySubsystemSpace->GetHilbertSpaceDimension()
+	   << " (requiring  " << (((double) ComplementarySubsystemSpaces[i]->GetHilbertSpaceDimension()) * ((double) TotalComplementarySubsystemSpace->GetHilbertSpaceDimension())/ 131072.0) << " Mb )" << endl;
+      RealMatrix TmpComplementaryTransformationMatrix (ComplementarySubsystemSpaces[i]->GetHilbertSpaceDimension(), TotalComplementarySubsystemSpace->GetHilbertSpaceDimension(), true);
+      for (int TmpComplementarySubsystemIndex = 0; TmpComplementarySubsystemIndex <  ComplementarySubsystemSpaces[i]->GetHilbertSpaceDimension(); ++TmpComplementarySubsystemIndex)
 	{
-	  ComplementarySubsytemSpaces[i]->ConvertToMonomial(ComplementarySubsytemSpaces[i]->StateDescriptionUp[TmpComplementarySubsytemIndex],
-							    ComplementarySubsytemSpaces[i]->StateDescriptionDown[TmpComplementarySubsytemIndex],
+	  ComplementarySubsystemSpaces[i]->ConvertToMonomial(ComplementarySubsystemSpaces[i]->StateDescriptionUp[TmpComplementarySubsystemIndex],
+							    ComplementarySubsystemSpaces[i]->StateDescriptionDown[TmpComplementarySubsystemIndex],
 							    TmpComplementaryMonomialUp1, TmpComplementaryMonomialDown1);
-	  for (int TmpTotalComplementarySubsytemIndex = 0; TmpTotalComplementarySubsytemIndex <  TotalComplementarySubsytemSpace->GetHilbertSpaceDimension(); ++TmpTotalComplementarySubsytemIndex)
+	  for (int TmpTotalComplementarySubsystemIndex = 0; TmpTotalComplementarySubsystemIndex <  TotalComplementarySubsystemSpace->GetHilbertSpaceDimension(); ++TmpTotalComplementarySubsystemIndex)
 	    {
-	      TotalComplementarySubsytemSpace->ConvertToMonomial(TotalComplementarySubsytemSpace->StateDescriptionUp[TmpTotalComplementarySubsytemIndex],
-								 TotalComplementarySubsytemSpace->StateDescriptionDown[TmpTotalComplementarySubsytemIndex],
+	      TotalComplementarySubsystemSpace->ConvertToMonomial(TotalComplementarySubsystemSpace->StateDescriptionUp[TmpTotalComplementarySubsystemIndex],
+								 TotalComplementarySubsystemSpace->StateDescriptionDown[TmpTotalComplementarySubsystemIndex],
 								 TmpComplementaryMonomialUp2, TmpComplementaryMonomialDown2);
 	      double Tmp = 1.0;
-	      if (ComplementarySubsytemNbrUp > 0)
+	      if (ComplementarySubsystemNbrUp > 0)
 		{
-		  TmpComplementarySubsytemPermanentMatrixUp.ClearMatrix();
-		  for (int j = 0; j < ComplementarySubsytemNbrUp; ++j)
+		  TmpComplementarySubsystemPermanentMatrixUp.ClearMatrix();
+		  for (int j = 0; j < ComplementarySubsystemNbrUp; ++j)
 		    {
-		      for (int k = 0; k < ComplementarySubsytemNbrUp; ++k)
+		      for (int k = 0; k < ComplementarySubsystemNbrUp; ++k)
 			{
 			  int TmpIndex = SearchInArray<int>(TmpComplementaryMonomialUp2[k], connectedOrbitalBUp[TmpComplementaryMonomialUp1[j]], 
 							    nbrConnectedOrbitalBUp[TmpComplementaryMonomialUp1[j]]);
 			  if (TmpIndex >= 0)
 			    {
-			      TmpComplementarySubsytemPermanentMatrixUp.SetMatrixElement(j, k, weightOrbitalBUp[TmpComplementaryMonomialUp1[j]][TmpIndex]);
+			      TmpComplementarySubsystemPermanentMatrixUp.SetMatrixElement(j, k, weightOrbitalBUp[TmpComplementaryMonomialUp1[j]][TmpIndex]);
 			    }
 			}
 		    }
-		  Tmp *= TmpComplementarySubsytemPermanentMatrixUp.Permanent();
+		  Tmp *= TmpComplementarySubsystemPermanentMatrixUp.Permanent();
 		}
-	      if (ComplementarySubsytemNbrDown > 0)
+	      if (ComplementarySubsystemNbrDown > 0)
 		{
-		  TmpComplementarySubsytemPermanentMatrixDown.ClearMatrix();
-		  for (int j = 0; j < ComplementarySubsytemNbrDown; ++j)
+		  TmpComplementarySubsystemPermanentMatrixDown.ClearMatrix();
+		  for (int j = 0; j < ComplementarySubsystemNbrDown; ++j)
 		    {
-		      for (int k = 0; k < ComplementarySubsytemNbrDown; ++k)
+		      for (int k = 0; k < ComplementarySubsystemNbrDown; ++k)
 			{
 			  int TmpIndex = SearchInArray<int>(TmpComplementaryMonomialDown2[k], connectedOrbitalBDown[TmpComplementaryMonomialDown1[j]], 
 							    nbrConnectedOrbitalBDown[TmpComplementaryMonomialDown1[j]]);
 			  if (TmpIndex >= 0)
 			    {
-			      TmpComplementarySubsytemPermanentMatrixDown.SetMatrixElement(j, k, weightOrbitalBDown[TmpComplementaryMonomialDown1[j]][TmpIndex]);
+			      TmpComplementarySubsystemPermanentMatrixDown.SetMatrixElement(j, k, weightOrbitalBDown[TmpComplementaryMonomialDown1[j]][TmpIndex]);
 			    }
 			}
 		    }
-		   Tmp *= TmpComplementarySubsytemPermanentMatrixDown.Permanent();
+		   Tmp *= TmpComplementarySubsystemPermanentMatrixDown.Permanent();
 		}
-	      Tmp *= exp(-0.5 * (TotalComplementarySubsytemOccupationFactors[TmpTotalComplementarySubsytemIndex] 
-				 +  + TotalAllComplementarySubsytemOccupationFactors[i][TmpComplementarySubsytemIndex]));
-	      TmpComplementaryTransformationMatrix.SetMatrixElement(TmpComplementarySubsytemIndex, TmpTotalComplementarySubsytemIndex, Tmp);
+	      Tmp *= exp(-0.5 * (TotalComplementarySubsystemOccupationFactors[TmpTotalComplementarySubsystemIndex] 
+				 +  + TotalAllComplementarySubsystemOccupationFactors[i][TmpComplementarySubsystemIndex]));
+	      TmpComplementaryTransformationMatrix.SetMatrixElement(TmpComplementarySubsystemIndex, TmpTotalComplementarySubsystemIndex, Tmp);
 	    }
 	}
-      RealMatrix TmpTransformationMatrix (TotalSubsystemSpace->GetHilbertSpaceDimension(), SubsytemSpaces[i]->GetHilbertSpaceDimension(), true);
-      for (int TmpSubsytemIndex = 0; TmpSubsytemIndex <  SubsytemSpaces[i]->GetHilbertSpaceDimension(); ++TmpSubsytemIndex)
+      cout << "size of the A tranformation matrix " << SubsystemSpaces[i]->GetHilbertSpaceDimension() << " x " << TotalSubsystemSpace->GetHilbertSpaceDimension()
+	   << " (requiring  " << (((double) SubsystemSpaces[i]->GetHilbertSpaceDimension()) * ((double) TotalSubsystemSpace->GetHilbertSpaceDimension())/ 131072.0) << " Mb )" << endl;
+      RealMatrix TmpTransformationMatrix (TotalSubsystemSpace->GetHilbertSpaceDimension(), SubsystemSpaces[i]->GetHilbertSpaceDimension(), true);
+      for (int TmpSubsystemIndex = 0; TmpSubsystemIndex <  SubsystemSpaces[i]->GetHilbertSpaceDimension(); ++TmpSubsystemIndex)
 	{
-	  SubsytemSpaces[i]->ConvertToMonomial(SubsytemSpaces[i]->StateDescriptionUp[TmpSubsytemIndex],
-					      SubsytemSpaces[i]->StateDescriptionDown[TmpSubsytemIndex],
+	  SubsystemSpaces[i]->ConvertToMonomial(SubsystemSpaces[i]->StateDescriptionUp[TmpSubsystemIndex],
+					      SubsystemSpaces[i]->StateDescriptionDown[TmpSubsystemIndex],
 					      TmpMonomialUp1, TmpMonomialDown1);
-	  for (int TmpTotalSubsytemIndex = 0; TmpTotalSubsytemIndex <  TotalSubsystemSpace->GetHilbertSpaceDimension(); ++TmpTotalSubsytemIndex)
+	  for (int TmpTotalSubsystemIndex = 0; TmpTotalSubsystemIndex <  TotalSubsystemSpace->GetHilbertSpaceDimension(); ++TmpTotalSubsystemIndex)
 	    {
-	      TotalSubsystemSpace->ConvertToMonomial(TotalSubsystemSpace->StateDescriptionUp[TmpTotalSubsytemIndex],
-						    TotalSubsystemSpace->StateDescriptionDown[TmpTotalSubsytemIndex],
+	      TotalSubsystemSpace->ConvertToMonomial(TotalSubsystemSpace->StateDescriptionUp[TmpTotalSubsystemIndex],
+						    TotalSubsystemSpace->StateDescriptionDown[TmpTotalSubsystemIndex],
 						    TmpMonomialUp2, TmpMonomialDown2);
 	      double Tmp = 1.0;
-	      if (SubsytemNbrUp > 0)
+	      if (SubsystemNbrUp > 0)
 		{
-		  TmpSubsytemPermanentMatrixUp.ClearMatrix();
-		  for (int j = 0; j < SubsytemNbrUp; ++j)
+		  TmpSubsystemPermanentMatrixUp.ClearMatrix();
+		  for (int j = 0; j < SubsystemNbrUp; ++j)
 		    {
-		      for (int k = 0; k < SubsytemNbrUp; ++k)
+		      for (int k = 0; k < SubsystemNbrUp; ++k)
 			{
 			  int TmpIndex = SearchInArray<int>(TmpMonomialUp2[k], connectedOrbitalAUp[TmpMonomialUp1[j]], 
 							    nbrConnectedOrbitalAUp[TmpMonomialUp1[j]]);
 			  if (TmpIndex >= 0)
 			    {
-			      TmpSubsytemPermanentMatrixUp.SetMatrixElement(j, k, weightOrbitalAUp[TmpMonomialUp1[j]][TmpIndex]);
+			      TmpSubsystemPermanentMatrixUp.SetMatrixElement(j, k, weightOrbitalAUp[TmpMonomialUp1[j]][TmpIndex]);
 			    }
 			}
 		    }
-		  Tmp *= TmpSubsytemPermanentMatrixUp.Permanent();
+		  Tmp *= TmpSubsystemPermanentMatrixUp.Permanent();
 		}
-	      if (SubsytemNbrDown > 0)
+	      if (SubsystemNbrDown > 0)
 		{
-		  TmpSubsytemPermanentMatrixDown.ClearMatrix();
-		  for (int j = 0; j < SubsytemNbrDown; ++j)
+		  TmpSubsystemPermanentMatrixDown.ClearMatrix();
+		  for (int j = 0; j < SubsystemNbrDown; ++j)
 		    {
-		      for (int k = 0; k < SubsytemNbrDown; ++k)
+		      for (int k = 0; k < SubsystemNbrDown; ++k)
 			{
 			  int TmpIndex = SearchInArray<int>(TmpMonomialDown2[k], connectedOrbitalADown[TmpMonomialDown1[j]], 
 							    nbrConnectedOrbitalADown[TmpMonomialDown1[j]]);
 			  if (TmpIndex >= 0)
 			    {
-			      TmpSubsytemPermanentMatrixDown.SetMatrixElement(j, k, weightOrbitalADown[TmpMonomialDown1[j]][TmpIndex]);
+			      TmpSubsystemPermanentMatrixDown.SetMatrixElement(j, k, weightOrbitalADown[TmpMonomialDown1[j]][TmpIndex]);
 			    }
 			}
 		    }
-		  Tmp *= TmpSubsytemPermanentMatrixDown.Permanent();
+		  Tmp *= TmpSubsystemPermanentMatrixDown.Permanent();
 		}
-	      Tmp *= exp(-0.5 * (TotalSubsytemOccupationFactors[TmpTotalSubsytemIndex] + TotalAllSubsytemOccupationFactors[i][TmpSubsytemIndex]));
-	      TmpTransformationMatrix.SetMatrixElement(TmpTotalSubsytemIndex, TmpSubsytemIndex, Tmp);
+	      Tmp *= exp(-0.5 * (TotalSubsystemOccupationFactors[TmpTotalSubsystemIndex] + TotalAllSubsystemOccupationFactors[i][TmpSubsystemIndex]));
+	      TmpTransformationMatrix.SetMatrixElement(TmpTotalSubsystemIndex, TmpSubsystemIndex, Tmp);
 	    }
 	}
 //       cout << "processing " << i << endl;
@@ -3875,17 +4055,17 @@ RealMatrix BosonOnSphereWithSU2Spin::EvaluateEntanglementMatrixGenericRealSpaceP
   
   for (int i = 0; i < nbrEntanglementMatrices; ++i)
     {
-      delete SubsytemSpaces[i];
-      delete ComplementarySubsytemSpaces[i];
-      delete[] TotalAllSubsytemOccupationFactors[i];
-      delete[] TotalAllComplementarySubsytemOccupationFactors[i];
+      delete SubsystemSpaces[i];
+      delete ComplementarySubsystemSpaces[i];
+      delete[] TotalAllSubsystemOccupationFactors[i];
+      delete[] TotalAllComplementarySubsystemOccupationFactors[i];
     }
-  delete[] SubsytemSpaces;
-  delete[] ComplementarySubsytemSpaces;
-  delete[] TotalSubsytemOccupationFactors;
-  delete[] TotalComplementarySubsytemOccupationFactors;
-  delete[] TotalAllSubsytemOccupationFactors;
-  delete[] TotalAllComplementarySubsytemOccupationFactors;
+  delete[] SubsystemSpaces;
+  delete[] ComplementarySubsystemSpaces;
+  delete[] TotalSubsystemOccupationFactors;
+  delete[] TotalComplementarySubsystemOccupationFactors;
+  delete[] TotalAllSubsystemOccupationFactors;
+  delete[] TotalAllComplementarySubsystemOccupationFactors;
   delete[] LogFactorials;
 
   return TmpEntanglementMatrix;

@@ -29,6 +29,7 @@
 
 
 #include "HilbertSpace/Potts3ChainWithTranslations.h"
+#include "HilbertSpace/Potts3Chain.h"
 #include "Matrix/HermitianMatrix.h"
 #include "Matrix/RealMatrix.h"
 #include "HilbertSpace/SubspaceSpaceConverter.h"
@@ -60,6 +61,7 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations ()
   this->ChainDescription = 0;
   this->ChainLength = 0;
   this->Momentum = 0;
+  this->MaxXMomentum = 0;
   this->ComplementaryStateShift = 0;
   this->Sz = 0;
   this->FixedQuantumNumberFlag = false;
@@ -79,6 +81,7 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations (int chainLength, int m
   this->ComplementaryStateShift = (this->ChainLength - 1) << 1;
   this->FixedQuantumNumberFlag = false;
   this->Momentum = momentum;
+  this->MaxXMomentum = this->ChainLength;
   this->LargeHilbertSpaceDimension = 3l;
   for (int i = 1; i < chainLength; i++)
     this->LargeHilbertSpaceDimension *= 3l;
@@ -99,7 +102,7 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations (int chainLength, int m
   this->LookUpTable = new int [this->LookUpTableSize];
 
   this->ChainDescription = new unsigned long [this->LargeHilbertSpaceDimension];
-  this->LargeHilbertSpaceDimension = this->GenerateStates (this->ChainLength - 1, 0);
+  this->LargeHilbertSpaceDimension = this->RawGenerateStates (this->ChainLength - 1, 0);
   this->GenerateStates();
 }
 
@@ -118,6 +121,7 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations (int chainLength, int s
   this->Sz = sz % 3;
   this->FixedQuantumNumberFlag = true;
   this->Momentum = momentum;
+  this->MaxXMomentum = this->ChainLength;
 
   this->LargeHilbertSpaceDimension = this->EvaluateHilbertSpaceDimension(this->ChainLength - 1, this->Sz);
   if (this->LargeHilbertSpaceDimension >= (1l << 30))
@@ -139,7 +143,7 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations (int chainLength, int s
   this->LookUpTable = new int [this->LookUpTableSize];
 
   this->ChainDescription = new unsigned long [this->LargeHilbertSpaceDimension];
-  this->LargeHilbertSpaceDimension = this->GenerateStates (this->ChainLength - 1, 0, 0);
+  this->LargeHilbertSpaceDimension = this->RawGenerateStates (this->ChainLength - 1, 0, 0);
   if (this->LargeHilbertSpaceDimension >= (1l << 30))
     this->HilbertSpaceDimension = 0;
   else
@@ -170,6 +174,8 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations (const Potts3ChainWithT
       this->ComplementaryStateShift = chain.ComplementaryStateShift;
       this->NbrStateInOrbit = chain.NbrStateInOrbit;
       this->Momentum = chain.Momentum;
+      this->MaxXMomentum = chain.MaxXMomentum;
+      this->RescalingFactors = chain.RescalingFactors;
    }
   else
     {
@@ -194,7 +200,7 @@ Potts3ChainWithTranslations::Potts3ChainWithTranslations (const Potts3ChainWithT
 
 Potts3ChainWithTranslations::~Potts3ChainWithTranslations () 
 {
-  if ((this->ChainLength != 0) && (this->Flag.Shared() == false) && (this->Flag.Used() == true))
+  if ((this->ChainLength != 0) && (this->Flag.Shared() == false) && (this->Flag.Used() == true) && (this->LargeHilbertSpaceDimension != 0l))
     {
       delete[] this->ChainDescription;
       delete[] this->LookUpTable;
@@ -229,6 +235,8 @@ Potts3ChainWithTranslations& Potts3ChainWithTranslations::operator = (const Pott
       this->ComplementaryStateShift = chain.ComplementaryStateShift;
       this->NbrStateInOrbit = chain.NbrStateInOrbit;
       this->Momentum = chain.Momentum;
+      this->MaxXMomentum = chain.MaxXMomentum;
+      this->RescalingFactors = chain.RescalingFactors;
    }
   else
     {
@@ -286,22 +294,22 @@ long Potts3ChainWithTranslations::EvaluateHilbertSpaceDimension(int currentSite,
 // currentPosition = current position of the state that has to be considered
 // return value = number of generated states
 
-long Potts3ChainWithTranslations::GenerateStates(int currentSite, long currentPosition) 
+long Potts3ChainWithTranslations::RawGenerateStates(int currentSite, long currentPosition) 
 {
   if (currentSite < 0)
     {
       this->ChainDescription[currentPosition] = 0x0l;
       return (currentPosition + 1l);
     }
-  long TmpPosition = this->GenerateStates(currentSite - 1, currentPosition);
+  long TmpPosition = this->RawGenerateStates(currentSite - 1, currentPosition);
   unsigned long TmpMask = 0x2ul << (currentSite << 1);
   for (; currentPosition < TmpPosition; ++currentPosition)
     this->ChainDescription[currentPosition] |= TmpMask;
-  TmpPosition = this->GenerateStates(currentSite - 1, currentPosition);
+  TmpPosition = this->RawGenerateStates(currentSite - 1, currentPosition);
   TmpMask = 0x1ul << (currentSite << 1);
   for (; currentPosition < TmpPosition; ++currentPosition)
     this->ChainDescription[currentPosition] |= TmpMask;
-  return this->GenerateStates(currentSite - 1, currentPosition);
+  return this->RawGenerateStates(currentSite - 1, currentPosition);
 }
 
 // generate all states corresponding to a given total Sz
@@ -311,7 +319,7 @@ long Potts3ChainWithTranslations::GenerateStates(int currentSite, long currentPo
 // currentPosition = current position of the state that has to be considered
 // return value = number of generated states
 
-long Potts3ChainWithTranslations::GenerateStates(int currentSite, int currentSzValue, long currentPosition) 
+long Potts3ChainWithTranslations::RawGenerateStates(int currentSite, int currentSzValue, long currentPosition) 
 {
   if (currentSite < 0)
     {
@@ -323,19 +331,19 @@ long Potts3ChainWithTranslations::GenerateStates(int currentSite, int currentSzV
       else
 	return currentPosition;
     }
-  long TmpPosition = this->GenerateStates(currentSite - 1, currentSzValue + 2, currentPosition);
+  long TmpPosition = this->RawGenerateStates(currentSite - 1, currentSzValue + 2, currentPosition);
   unsigned long TmpMask = 0x2ul << (currentSite << 1);
   for (; currentPosition < TmpPosition; ++currentPosition)
     {
       this->ChainDescription[currentPosition] |= TmpMask;
     }
-  TmpPosition = this->GenerateStates(currentSite - 1, currentSzValue + 1, currentPosition);
+  TmpPosition = this->RawGenerateStates(currentSite - 1, currentSzValue + 1, currentPosition);
   TmpMask = 0x1ul << (currentSite << 1);
   for (; currentPosition < TmpPosition; ++currentPosition)
     {
       this->ChainDescription[currentPosition] |= TmpMask;
     }
-  return this->GenerateStates(currentSite - 1, currentSzValue, currentPosition);
+  return this->RawGenerateStates(currentSite - 1, currentSzValue, currentPosition);
 }
 
 // generate all states corresponding to a given momnetum
@@ -496,8 +504,10 @@ int Potts3ChainWithTranslations::SpiSpj (int i, int j, int state, double& coeffi
     case 0x0ul:
       TmpState |= 0x1ul << i;      
       break;
-    }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+    }
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // return index of resulting state from application of S-_i S-_j operator on a given state
@@ -539,8 +549,10 @@ int Potts3ChainWithTranslations::SmiSmj (int i, int j, int state, double& coeffi
     case 0x0ul:
       TmpState |= 0x2ul << i;      
       break;
-    }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+    }
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // return index of resulting state from application of S+_i S+_i operator on a given state
@@ -605,7 +617,9 @@ int Potts3ChainWithTranslations::SpiSzj (int i, int j, int state, double& coeffi
       TmpState |= 0x1ul << i;      
       break;
     }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // return index of resulting state from application of S-_i Sz_j operator on a given state
@@ -644,7 +658,9 @@ int Potts3ChainWithTranslations::SmiSzj (int i, int j, int state, double& coeffi
       TmpState |= 0x2ul << i;      
       break;
     }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // return index of resulting state from application of S+_i operator on a given state
@@ -673,7 +689,9 @@ int Potts3ChainWithTranslations::Spi (int i, int state, double& coefficient, int
       TmpState |= 0x1ul << i;      
       break;
     }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // return index of resulting state from application of S-_i operator on a given state
@@ -702,7 +720,9 @@ int Potts3ChainWithTranslations::Smi (int i, int state, double& coefficient, int
       TmpState |= 0x2ul << i;      
       break;
     }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // translate a state assuming the system have periodic boundary conditions (increasing the site index)
@@ -795,3 +815,86 @@ ostream& Potts3ChainWithTranslations::PrintState (ostream& Str, int state)
     }
   return Str;
 }
+
+// evaluate entanglement matrix of a subsystem of the whole system described by a given ground state. The entanglement matrix density matrix is only evaluated in a given Sz sector.
+// 
+// nbrSites = number of sites that are part of the A subsytem 
+// szSector = Sz sector in which the density matrix has to be evaluated 
+// groundState = reference on the total system ground state
+// architecture = pointer to the architecture to use parallelized algorithm 
+// return value = entanglement matrix of the subsytem (return a zero dimension matrix if the entanglement matrix is equal to zero)
+
+ComplexMatrix Potts3ChainWithTranslations::EvaluatePartialEntanglementMatrix (int nbrSites, int szSector, ComplexVector& groundState, AbstractArchitecture* architecture)
+{
+  if (nbrSites == 0)
+    {
+      if (szSector == 0)
+	{
+	  ComplexMatrix TmpEntanglementMatrix(1, 1);
+          Complex Tmp(1.0, 0.0);
+	  TmpEntanglementMatrix.SetMatrixElement(0, 0, Tmp);
+	  return TmpEntanglementMatrix;
+	}
+      else
+	{
+	  ComplexMatrix TmpEntanglementMatrix;
+	  return TmpEntanglementMatrix;	  
+	}
+      
+    }
+  if (nbrSites == this->ChainLength)
+    {
+      if (szSector == this->Sz)
+	{
+	  ComplexMatrix TmpEntanglementMatrix(1, 1);
+          Complex Tmp(1.0, 0.0);
+	  TmpEntanglementMatrix.SetMatrixElement(0, 0, Tmp);
+	  return TmpEntanglementMatrix;
+	}
+      else
+	{
+	  ComplexMatrix TmpEntanglementMatrix;
+	  return TmpEntanglementMatrix;	  
+	}      
+    }
+  Potts3Chain TmpDestinationHilbertSpace(nbrSites, szSector, 1000000);
+  int QB = this->Sz - szSector;
+  if (QB < 0)
+    {
+      QB += 3;
+    }
+  Potts3Chain TmpHilbertSpace(this->ChainLength - nbrSites, QB, 1000000);
+
+  ComplexMatrix TmpEntanglementMatrix(TmpHilbertSpace.HilbertSpaceDimension, TmpDestinationHilbertSpace.HilbertSpaceDimension, true);
+  int Shift = 2 * nbrSites;
+  int MinIndex = 0;
+  int MaxIndex = TmpHilbertSpace.HilbertSpaceDimension;
+  int TmpNbrTranslation;
+  int TmpNbrTranslationToIdentity;
+  Complex* TmpPhases = new Complex [2 * this->ChainLength];
+  double Coef = 2.0 * M_PI * ((double) this->Momentum) / ((double) this->ChainLength);
+  for (int i = 0; i < (2 * this->ChainLength); ++i)
+    {
+      TmpPhases[i] = Phase(Coef * ((double) i));
+    }
+
+  unsigned long Mask1 = (0x1ul << Shift) - 0x1ul;
+  unsigned long Mask2 = (0x1ul << (2 * this->ChainLength)) - 0x1ul;
+  for (; MinIndex < MaxIndex; ++MinIndex)    
+    {
+      unsigned long TmpState = TmpHilbertSpace.StateDescription[MinIndex] << Shift;
+      for (int j = 0; j < TmpDestinationHilbertSpace.HilbertSpaceDimension; ++j)
+	{
+	  unsigned long TmpState2 = (TmpState | (TmpDestinationHilbertSpace.StateDescription[j] & Mask1)) & Mask2;
+	  double Coefficient = 1.0;
+	  int TmpPos = this->SymmetrizeResult(TmpState2, 1, Coefficient, TmpNbrTranslation);
+	  if (TmpPos != this->HilbertSpaceDimension)
+	    {
+	      TmpEntanglementMatrix.AddToMatrixElement(MinIndex, j, groundState[TmpPos] * TmpPhases[TmpNbrTranslation] / sqrt((double) this->NbrStateInOrbit[TmpPos]));
+	    }
+	}
+    }
+  delete[] TmpPhases;
+  return TmpEntanglementMatrix;
+}
+

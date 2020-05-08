@@ -87,6 +87,7 @@ class FermionOnSphere :  public ParticleOnSphere
   friend class FermionOnSphereHaldaneSymmetricBasis;
   friend class FermionOnSphereHaldaneHugeBasis;
   friend class FermionOnSphereFull;
+  friend class FermionOnSphereDroplet;
 
   friend class FermionOnSphereWithSpin;
   friend class FermionOnSphereWithSpinHaldaneBasis;
@@ -142,7 +143,8 @@ class FermionOnSphere :  public ParticleOnSphere
   friend class FQHESphereBosonicStateTimesPolarizedSlaterProjectionOperation;
 
   friend class BosonOnLatticeRealSpaceAnd2DTranslation;
-
+  friend class FermionOnLatticeWithSpinAndGutzwillerProjectionRealSpace;
+  
  protected:
 
   // number of fermions

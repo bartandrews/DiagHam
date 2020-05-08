@@ -58,6 +58,10 @@ class TightBindingModelCheckerboardLattice : public Abstract2DTightBindingModel
 
   // default constructor
   //
+  TightBindingModelCheckerboardLattice();
+
+  // constructor
+  //
   // nbrSiteX = number of sites in the x direction
   // nbrSiteY = number of sites in the y direction
   // t1 = hoping amplitude between neareast neighbor sites

@@ -57,6 +57,9 @@ class SpinChainRealHamiltonianWithTranslations : public AbstractHamiltonian
   double Jz;
   // half coupling constant between spin in the xx and yy direction 
   double HalfJ;
+  // coupling constant between next nearest neighbour spins in the zz direction 
+  double NNNCoupling;
+
   
   // number of spin 
   int NbrSpin;
@@ -82,7 +85,9 @@ class SpinChainRealHamiltonianWithTranslations : public AbstractHamiltonian
   // chain = pointer to Hilbert space of the associated system
   // nbrSpin = number of spin
   // j = coupling constants between spins
-  SpinChainRealHamiltonianWithTranslations(AbstractSpinChainWithTranslations* chain, int nbrSpin, double j);
+  // nnCoupling = term to add to ZZ nearest-neighbour interaction
+  // nnnCoupling = nearest-neighbour interaction in Z direction
+  SpinChainRealHamiltonianWithTranslations(AbstractSpinChainWithTranslations* chain, int nbrSpin, double j, double nnCoupling, double nnnCoupling);
 
   // destructor
   //

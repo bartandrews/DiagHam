@@ -7,6 +7,8 @@
 #include "HilbertSpace/FermionOnTorus.h"
 #include "HilbertSpace/FermionOnTorusWithMagneticTranslations.h"
 #include "Hamiltonian/ParticleOnTorusCoulombWithMagneticTranslationsHamiltonian.h"
+#include "Hamiltonian/ParticleOnTorusCoulombWithMagneticTranslationsRealHamiltonian.h"
+#include "Hamiltonian/ParticleOnTorusDoubleGatedCoulombWithMagneticTranslationsHamiltonian.h"
 #include "Hamiltonian/ParticleOnTorusCoulombMassAnisotropyWithMagneticTranslationsHamiltonian.h"
 #include "Hamiltonian/ParticleOnTwistedTorusCoulombWithMagneticTranslationsHamiltonian.h"
 
@@ -74,6 +76,7 @@ int main(int argc, char** argv)
 					      -1);
   (*SystemGroup) += new SingleDoubleOption   ('\n', "angle", "angle between the two fundamental cycles of the torus in radians (0 if rectangular)", 0);
   (*SystemGroup) += new SingleIntegerOption  ('L', "landau-level", "Landau-level to be simulated", 0);
+  (*SystemGroup) += new SingleDoubleOption   ('\n', "double-gate", "assume that the Coulomb interaction is screened by a double gate (0 if no gating, otherwise provide the gate distance)", 0.0); 
   (*SystemGroup) += new SingleStringOption  ('\n', "interaction-file", "file describing the interaction");
   (*SystemGroup) += new BooleanOption  ('\n', "all-points", "calculate all points", false);
   (*SystemGroup) += new BooleanOption  ('\n', "full-reducedbz", "calculate all points within the full reduced Brillouin zone", false);
@@ -83,6 +86,7 @@ int main(int argc, char** argv)
   (*SystemGroup) += new SingleStringOption ('\n', "use-hilbert", "name of the file that contains the vector files used to describe the reduced Hilbert space (replace the n-body basis)");
   (*SystemGroup) += new SingleStringOption  ('\n', "eigenvalue-file", "filename for eigenvalues output");
   (*SystemGroup) += new SingleStringOption  ('\n', "eigenstate-file", "filename for eigenstates output; to be appended by _kx_#_ky_#.#.vec");
+  (*SystemGroup) += new  BooleanOption ('\n', "enable-realhamiltonian", "use a real Hamiltonian at the inversion symmetric points");
   (*PrecalculationGroup) += new SingleIntegerOption  ('m', "memory", "amount of memory that can be allocated for fast multiplication (in Mbytes)", 
 						      500);
   (*PrecalculationGroup) += new SingleStringOption  ('\n', "load-precalculation", "load precalculation from a file",0);
@@ -125,17 +129,28 @@ int main(int argc, char** argv)
       if (InteractionDefinition["CoulombLandauLevel"] != NULL)
 	{
 	  LandauLevel = atoi(InteractionDefinition["CoulombLandauLevel"]);
-	  HaveCoulomb=true;
+	  HaveCoulomb = true;
 	}
       if (InteractionDefinition["Name"] == NULL)
 	{
 	  if ((InteractionDefinition["CoulombLandauLevel"] != NULL) && (InteractionDefinition["Pseudopotentials"] == NULL))
 	    {
-	      InteractionName = new char[18];
-	      if (LandauLevel>=0)
-		sprintf(InteractionName,"coulomb_l_%d",LandauLevel);
+	      InteractionName = new char[256];
+	      if (LandauLevel >= 0)
+		{
+		  if (Manager.GetDouble("double-gate") != 0.0)
+		    {
+		      sprintf(InteractionName,"coulomb_l_%d_dgate_%.6f", LandauLevel, Manager.GetDouble("double-gate"));
+		    }
+		  else
+		    {
+		      sprintf(InteractionName,"coulomb_l_%d",LandauLevel);
+		    }
+		}
 	      else
-		sprintf(InteractionName,"graphene_l_%d",-LandauLevel);
+		{
+		  sprintf(InteractionName,"graphene_l_%d",-LandauLevel);
+		}
 	    }
 	  else
 	    {
@@ -154,9 +169,30 @@ int main(int argc, char** argv)
   else
     {
       LandauLevel = Manager.GetInteger("landau-level");
-      InteractionName = new char[1];
-      InteractionName[0]='\0';
-      HaveCoulomb=true;
+      InteractionName = new char[128];
+      if (Manager.GetDouble("double-gate") != 0.0)
+	{
+	  if (LandauLevel >= 0)
+	    {
+	      sprintf(InteractionName,"coulomb_l_%d_dgate_%.6f", LandauLevel, Manager.GetDouble("double-gate"));
+	    }
+	  else
+	    {
+	      sprintf(InteractionName,"graphene_l_%d_dgate_%.6f", -LandauLevel, Manager.GetDouble("double-gate"));
+	    }
+	}
+      else
+	{
+	  if (LandauLevel >= 0)
+	    {
+	      sprintf(InteractionName,"coulomb_l_%d", LandauLevel);
+	    }
+	  else
+	    {
+	      sprintf(InteractionName,"graphene_l_%d", -LandauLevel);
+	    }
+	}
+      HaveCoulomb = true;
     }
   double XRatio = NbrFermions / 4.0;
   if (Manager.GetDouble("ratio") > 0)
@@ -168,7 +204,6 @@ int main(int argc, char** argv)
 
   long Memory = ((unsigned long) Manager.GetInteger("memory")) << 20;
 
-  char* OutputName = new char [512];
   char* SuffixOutputName = new char [256];
   if (Angle == 0.0)    
     {
@@ -186,22 +221,10 @@ int main(int argc, char** argv)
     {
       sprintf (SuffixOutputName, "n_%d_2s_%d_ratio_%.6f_angle_%.6f.dat", NbrFermions, MaxMomentum, XRatio, Angle);
     }  
-  if (NbrPseudopotentials>0)
-    {
-      sprintf (OutputName, "fermions_torus_%s_%s", InteractionName, SuffixOutputName);
-    }
-  else
-    {
-      if (LandauLevel>0)
-	sprintf (OutputName, "fermions_torus_coulomb_l_%d_%s", LandauLevel, SuffixOutputName);
-      else
-	if (LandauLevel<0)
-	  sprintf (OutputName, "fermions_torus_graphene_l_%d_%s", -LandauLevel, SuffixOutputName);
-	else
-	  sprintf (OutputName, "fermions_torus_coulomb_%s", SuffixOutputName);
-    }
+  char* OutputName = new char [512 + strlen(SuffixOutputName) + strlen(InteractionName)];
+  sprintf (OutputName, "fermions_torus_%s_%s", InteractionName, SuffixOutputName);
 
-  if (Manager.GetString("eigenvalue-file")!=0)
+  if (Manager.GetString("eigenvalue-file") != 0)
       strcpy(OutputName, Manager.GetString("eigenvalue-file"));
 
   int MomentumModulo = FindGCD(NbrFermions, MaxMomentum);
@@ -381,7 +404,8 @@ int main(int argc, char** argv)
 	}
     }
   
-  bool FirstRun=true;
+  bool FirstRun = true;
+  bool ForceRealFlag = false;
   for (int Pos = 0; Pos < NbrMomenta; ++Pos)
     {
       XMomentum=XMomenta[Pos];
@@ -401,13 +425,41 @@ int main(int argc, char** argv)
       if (Angle == 0.0)
 	{
 	  if (Manager.GetBoolean("mass-anisotropy") == false)
-	    Hamiltonian = new ParticleOnTorusCoulombWithMagneticTranslationsHamiltonian(TotalSpace, NbrFermions, MaxMomentum, XMomentum, 
-											XRatio, HaveCoulomb, LandauLevel, NbrPseudopotentials, Pseudopotentials, !Manager.GetBoolean("add-wigner"),
-											Architecture.GetArchitecture(), Memory, LoadPrecalculationFile);
+	    {
+	      if (Manager.GetDouble("double-gate") != 0.0)
+		{
+		  Hamiltonian = new ParticleOnTorusDoubleGatedCoulombWithMagneticTranslationsHamiltonian(TotalSpace, NbrFermions, MaxMomentum, XMomentum, 
+													 XRatio, Manager.GetDouble("double-gate"), HaveCoulomb, LandauLevel, NbrPseudopotentials, Pseudopotentials, !Manager.GetBoolean("add-wigner"),
+													 Architecture.GetArchitecture(), Memory, LoadPrecalculationFile);
+		}
+	      else
+		{
+		  if ((Manager.GetBoolean("enable-realhamiltonian") == true) &&
+		      (((XMomentum % MomentumModulo) == 0) || (((MomentumModulo & 1) == 0) && ((XMomentum % MomentumModulo) == (MomentumModulo / 2)))) &&
+		      (((YMomentum % MomentumModulo) == 0) || (((MomentumModulo & 1) == 0) && ((YMomentum % MomentumModulo) == (MomentumModulo / 2)))))
+		    {
+		      cout << "using real hamiltonian" << endl;
+		      ForceRealFlag = true;
+		      Lanczos.SetRealAlgorithms();
+		      Hamiltonian = new ParticleOnTorusCoulombWithMagneticTranslationsRealHamiltonian(TotalSpace, NbrFermions, MaxMomentum, XMomentum, 
+												      XRatio, HaveCoulomb, LandauLevel, NbrPseudopotentials, Pseudopotentials, !Manager.GetBoolean("add-wigner"),
+												      Architecture.GetArchitecture(), Memory, LoadPrecalculationFile);
+		    }
+		  else
+		    {		      
+		      cout << "using complex hamiltonian" << endl;
+		      Hamiltonian = new ParticleOnTorusCoulombWithMagneticTranslationsHamiltonian(TotalSpace, NbrFermions, MaxMomentum, XMomentum, 
+												  XRatio, HaveCoulomb, LandauLevel, NbrPseudopotentials, Pseudopotentials, !Manager.GetBoolean("add-wigner"),
+												  Architecture.GetArchitecture(), Memory, LoadPrecalculationFile);
+		    }
+		}
+	    }
 	  else
-	    Hamiltonian = new ParticleOnTorusCoulombMassAnisotropyWithMagneticTranslationsHamiltonian(TotalSpace, NbrFermions, MaxMomentum, XMomentum, 
-												      XRatio, Manager.GetDouble("anisotropy"), HaveCoulomb, LandauLevel, NbrPseudopotentials, Pseudopotentials, !Manager.GetBoolean("add-wigner"),
-											Architecture.GetArchitecture(), Memory, LoadPrecalculationFile);
+	    {
+	      Hamiltonian = new ParticleOnTorusCoulombMassAnisotropyWithMagneticTranslationsHamiltonian(TotalSpace, NbrFermions, MaxMomentum, XMomentum, 
+													XRatio, Manager.GetDouble("anisotropy"), HaveCoulomb, LandauLevel, NbrPseudopotentials, Pseudopotentials, !Manager.GetBoolean("add-wigner"),
+													Architecture.GetArchitecture(), Memory, LoadPrecalculationFile);
+	    }
 	}
       else
 	{
@@ -463,8 +515,8 @@ int main(int argc, char** argv)
 
       double Shift = -10.0;
       Hamiltonian->ShiftHamiltonian(Shift);      
-      FQHEOnTorusMainTask Task (&Manager, TotalSpace, &Lanczos, Hamiltonian, YMomentum, Shift, OutputName, FirstRun, EigenvectorName);
-      Task.SetKxValue(XMomentum);
+      FQHEOnTorusMainTask Task (&Manager, TotalSpace, &Lanczos, Hamiltonian, YMomentum, Shift, OutputName, FirstRun, EigenvectorName, XMomentum, 0, ForceRealFlag);
+      //      Task.SetKxValue(XMomentum);
       if (Multiplicities!=0)
 	Task.SetMultiplicity(Multiplicities[Pos]);
       MainTaskOperation TaskOperation (&Task);
@@ -475,6 +527,8 @@ int main(int argc, char** argv)
 	}
       if (FirstRun == true)
 	FirstRun = false;
+      Lanczos.SetComplexAlgorithms();
+      ForceRealFlag = false;
       delete Hamiltonian;
       delete TotalSpace;
     }

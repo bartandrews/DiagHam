@@ -71,7 +71,9 @@ int main(int argc, char** argv)
   (*SystemGroup) += new SingleStringOption ('\n', "add-diagonal", "add a diagonal contribution to the hamiltonian");
   (*SystemGroup) += new SingleIntegerOption ('\n', "column-diagonal", "indicates which column has to be used in --add-diagonal", 0);
   (*SystemGroup) += new BooleanOption  ('\n', "get-hvalue", "compute mean value of the Hamiltonian against each eigenstate");  
-  (*OutputGroup) += new SingleStringOption ('o', "output-file", "prefix to use for output file names", "dummy");
+  (*SystemGroup) += new BooleanOption  ('s', "nosort-rowindices", "do not sort the row indices, assuming they are already sorted from the smallest to the largest"); 
+  (*SystemGroup) += new  SingleStringOption ('\n', "use-hilbert", "name of the file that contains the vector files used to describe the reduced Hilbert space (replace the n-body basis)");
+ (*OutputGroup) += new SingleStringOption ('o', "output-file", "prefix to use for output file names", "dummy");
   (*OutputGroup) += new SingleStringOption ('\n', "eigenstate-file", "prefix to use for the eigenstate output file names", "dummy");
 #ifdef __LAPACK__
   (*ToolsGroup) += new BooleanOption  ('\n', "use-lapack", "use LAPACK libraries instead of DiagHam libraries");
@@ -82,6 +84,7 @@ int main(int argc, char** argv)
   (*ToolsGroup) += new BooleanOption  ('\n', "show-hamiltonian", "show matrix representation of the hamiltonian");
   (*ToolsGroup) += new BooleanOption  ('\n', "friendlyshow-hamiltonian", "show matrix representation of the hamiltonian, displaying only non-zero matrix elements");
   (*ToolsGroup) += new SingleDoubleOption ('\n', "friendlyshowhamiltonian-error", "when using --friendlyshow-hamiltonian, value below which a matrix element is considered equal to zero", 0.0);
+  (*ToolsGroup) += new BooleanOption  ('\n', "test-hermitian", "test if the hamiltonian is hermitian");
   (*MiscGroup) += new BooleanOption  ('h', "help", "display this help");
   
   if (Manager.ProceedOptions(argv, argc, cout) == false)
@@ -123,11 +126,11 @@ int main(int argc, char** argv)
     {
       if (ComplexFlag == false)
 	{
-	  Hamiltonian  = new FileBasedHamiltonian(Manager.GetString("hamiltonian"), Manager.GetInteger("data-column"), false, Manager.GetBoolean("fortran"), Manager.GetInteger("skip-lines"));
+	  Hamiltonian  = new FileBasedHamiltonian(Manager.GetString("hamiltonian"), Manager.GetInteger("data-column"), false, Manager.GetBoolean("fortran"), Manager.GetInteger("skip-lines"), Manager.GetBoolean("nosort-rowindices"));
 	}
       else
 	{
-	  Hamiltonian  = new FileBasedHermitianHamiltonian(Manager.GetString("hamiltonian"), Manager.GetInteger("data-column"), false, Manager.GetBoolean("fortran"), Manager.GetInteger("skip-lines"));
+	  Hamiltonian  = new FileBasedHermitianHamiltonian(Manager.GetString("hamiltonian"), Manager.GetInteger("data-column"), false, Manager.GetBoolean("fortran"), Manager.GetInteger("skip-lines"), Manager.GetBoolean("nosort-rowindices"));
 	}
       
       Architecture.GetArchitecture()->SetDimension(Hamiltonian->GetHilbertSpaceDimension());	
@@ -303,7 +306,7 @@ int main(int argc, char** argv)
 		      cout << "can't read " << HamiltonianFile(0, i) << endl;
 		      return -1;
 		    }
-		  if (TmpH.GetNbrRow() != HRepReal.GetNbrRow())
+		  if (TmpH.GetNbrRow() != HRep.GetNbrRow())
 		    {
 		      cout << "error, " << HamiltonianFile(0, i) << " and " << HamiltonianFile(0, 0) 
 			   << " do not have the same size" << endl;

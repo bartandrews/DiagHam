@@ -64,4 +64,28 @@ Spin1_2ChainNewSzSymmetryGenericInversionAnd2DTranslation.cc \
 Spin1_2ChainNewGenericInversionAnd2DTranslation.cc \
 SU3SpinChain.cc \
 SU3SpinChainAnd2DTranslation.cc \
-SU3SpinChain2DTranslationAndTzSymmetry.cc
+SU3SpinChain2DTranslationAndTzSymmetry.cc \
+Spin3_2Chain.cc \
+Spin3_2ChainAnd2DTranslation.cc \
+Spin3_2ChainSzSymmetryAnd2DTranslation.cc \
+PairHoppingP1AsSpin1Chain.cc \
+PairHoppingP2AsSpin1Chain.cc \
+PairHoppingGenericPAsSpin1Chain.cc \
+PairHoppingP1AsSpin1ChainWithTranslations.cc \
+PairHoppingP2AsSpin1ChainWithTranslations.cc \
+PairHoppingGenericPAsSpin1ChainWithTranslations.cc \
+PairHoppingP1AsSpin1ChainWithTranslationsAndInversionSzSymmetry.cc \
+PairHoppingP2AsSpin1ChainWithTranslationsAndInversionSzSymmetry.cc \
+PairHoppingGenericPAsSpin1ChainWithTranslationsAndInversionSzSymmetry.cc \
+Spin1ChainLong.cc \
+Spin1ChainWithTranslationsLong.cc \
+PairHoppingP1AsSpin1ChainLong.cc \
+PairHoppingP2AsSpin1ChainLong.cc \
+PairHoppingGenericPAsSpin1ChainLong.cc\
+PairHoppingP1AsSpin1ChainWithTranslationsLong.cc \
+PairHoppingP2AsSpin1ChainWithTranslationsLong.cc \
+PairHoppingGenericPAsSpin1ChainWithTranslationsLong.cc \
+PairHoppingP1AsSpin1ChainWithTranslationsAndInversionSzSymmetryLong.cc \
+PairHoppingP2AsSpin1ChainWithTranslationsAndInversionSzSymmetryLong.cc \
+PairHoppingGenericPAsSpin1ChainWithTranslationsAndInversionSzSymmetryLong.cc \
+Potts3ChainWithTranslationsAndInversion.cc

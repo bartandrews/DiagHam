@@ -53,6 +53,9 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
 
  protected:
 
+  // number of sites in the x direction
+  int MaxXMomentum;
+
   // shift to apply to move the spin from one end to the other one
   int ComplementaryStateShift;
 
@@ -134,13 +137,13 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   //
   // index = index of the state to test
   // return value = spin projection on (Oz)
-  int TotalSz (int index);
+  virtual int TotalSz (int index);
 
   // return value of the value of the sum of the square of spin projection on (Oz) 
   //
   // index = index of the state to test
   // return value = twice spin projection on (Oz)
-  double TotalSzSz (int index);
+  virtual double TotalSzSz (int index);
 
   // return index of resulting state from application of S+_i operator on a given state (only valid if there is no constraint on total Sz)
   //
@@ -149,7 +152,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int Spi (int i, int state, double& coefficient, int& nbrTranslation);
+  virtual int Spi (int i, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S-_i operator on a given state (only valid if there is no constraint on total Sz)
   //
@@ -158,7 +161,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int Smi (int i, int state, double& coefficient, int& nbrTranslation);
+  virtual int Smi (int i, int state, double& coefficient, int& nbrTranslation);
     
   // return index of resulting state from application of S+_i S+_j operator on a given state
   //
@@ -168,7 +171,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SpiSpj (int i, int j, int state, double& coefficient, int& nbrTranslation);
+  virtual int SpiSpj (int i, int j, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S-_i S-_j operator on a given state
   //
@@ -178,7 +181,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SmiSmj (int i, int j, int state, double& coefficient, int& nbrTranslation);
+  virtual int SmiSmj (int i, int j, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S+_i S+_i operator on a given state
   //
@@ -187,7 +190,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SpiSpi (int i, int state, double& coefficient, int& nbrTranslation);
+  virtual int SpiSpi (int i, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S-_i S-_i operator on a given state
   //
@@ -196,7 +199,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SmiSmi (int i, int state, double& coefficient, int& nbrTranslation);
+  virtual int SmiSmi (int i, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S+_i Sz_j operator on a given state
   //
@@ -206,7 +209,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SpiSzj (int i, int j, int state, double& coefficient, int& nbrTranslation);
+  virtual int SpiSzj (int i, int j, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S-_i Sz_j operator on a given state
   //
@@ -216,7 +219,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SmiSzj (int i, int j, int state, double& coefficient, int& nbrTranslation);
+  virtual int SmiSzj (int i, int j, int state, double& coefficient, int& nbrTranslation);
 
   // return index of resulting state from application of S-_i S+_j operator on a given state
   //
@@ -226,7 +229,20 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // coefficient = reference on double where numerical coefficient has to be stored
   // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
   // return value = index of resulting state
-  int SmiSpj (int i, int j, int state, double& coefficient, int& nbrTranslation);
+  virtual int SmiSpj (int i, int j, int state, double& coefficient, int& nbrTranslation);
+
+  // return index of resulting state from application of Sz_k S-_i S+_j operator on a given state, notice that the numerical factor produced by Szk
+  // is NOT included in coefficient but is returned separately 
+  //
+  // i = position of S- operator
+  // j = position of S+ operator
+  // k = position of Sz operator
+  // state = index of the state to be applied on Sz_k S-_i S+_j operator
+  // coefficient = reference on double where numerical coefficient has to be stored
+  // szkCoefficient = reference on double where numerical coefficient for Szk has to be stored
+  // nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
+  // return value = index of resulting state
+  virtual int SzkSmiSpj (int i, int j, int k, int state, double& coefficient, double& szkCoefficient, int& nbrTranslation);
 
   // return index of resulting state from application of Sz_i operator on a given state
   //
@@ -234,7 +250,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // state = index of the state to be applied on Sz_i operator
   // coefficient = reference on double where numerical coefficient has to be stored
   // return value = index of resulting state
-  int Szi (int i, int state, double& coefficient);
+  virtual int Szi (int i, int state, double& coefficient);
 
   // return eigenvalue of Sz_i Sz_j associated to a given state
   //
@@ -242,20 +258,20 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // j = second position
   // state = index of the state to consider
   // return value = corresponding eigenvalue
-  double SziSzj (int i, int j, int state);
+  virtual double SziSzj (int i, int j, int state);
 
   // return value the product of the tau_j operators (Q operator) on a given state
   //
   // index = index of the state 
   // return value = Q value (0 for 1, 1 for exp(i 2 \pi / 3), -1 1 for exp(i 2 \pi / 3)) 
-  double QValue (int index);
+  virtual double QValue (int index);
 
   // translate a state assuming the system have periodic boundary conditions (increasing the site index)
   //
   // nbrTranslations = number of translations to apply
   // state = index of the state to translate 
   // return value = index of resulting state
-  int TranslateState (int nbrTranslations, int state);
+  virtual int TranslateState (int nbrTranslations, int state);
 
   // extract subspace with a fixed quantum number
   //
@@ -268,7 +284,7 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   //
   // state = state description
   // return value = corresponding index
-  int FindStateIndex(unsigned long state);
+  virtual int FindStateIndex(unsigned long state);
 
   // print a given State
   //
@@ -277,9 +293,27 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // return value = reference on current output stream 
   ostream& PrintState (ostream& Str, int state);
 
+  // evaluate entanglement matrix of a subsystem of the whole system described by a given ground state. The entanglement matrix density matrix is only evaluated in a given Sz sector.
+  // 
+  // nbrSites = number of sites that are part of the A subsytem 
+  // szSector = Sz sector in which the density matrix has to be evaluated 
+  // groundState = reference on the total system ground state
+  // architecture = pointer to the architecture to use parallelized algorithm 
+  // return value = entanglement matrix of the subsytem (return a zero dimension matrix if the entanglement matrix is equal to zero)
+  virtual ComplexMatrix EvaluatePartialEntanglementMatrix (int nbrSites, int szSector, ComplexVector& groundState, AbstractArchitecture* architecture = 0);
+
  protected:
   
-  // find the index of state and the number of translations required to get the canonical form
+   // factorized code that is used to symmetrize the result of any operator action
+  //
+  // state = reference on the state that has been produced with the operator action
+  // nbrStateInOrbit = original number of states in the orbit before the operator action
+  // coefficient = reference on the double where the multiplicative factor has to be stored
+  // nbrTranslations = reference on the number of translations to obtain the canonical form of the resulting state
+  // return value = index of the destination state  
+  virtual int SymmetrizeResult(unsigned long& state, int nbrStateInOrbit, double& coefficient, int& nbrTranslations);
+
+ // find the index of state and the number of translations required to get the canonical form
   //
   // inputState = index of the state that was used as the initial state
   // outputState = description of the state once the operator has been applied
@@ -287,15 +321,15 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // nbrTranslationToIdentity = number of translations required to map the state on itself
   // coefficient = reference on the numerical coefficient
   // return value = index of the output state canonical form
-  int FindStateIndexAndTransaltion(int& inputState, unsigned long& outputState, int& nbrTranslation, 
-				   int& nbrTranslationToIdentity, double& coefficient);
+  virtual int FindStateIndexAndTransaltion(int& inputState, unsigned long& outputState, int& nbrTranslation, 
+					   int& nbrTranslationToIdentity, double& coefficient);
 
   // find the canonical form of a state
   //
   // state = state description
   // nbrTranslation = reference on a integer where the number of translations needed to obtain the canonical form  will be stored
   // return value = canonical form of the state
-  unsigned long FindCanonicalForm(unsigned long state, int& nbrTranslation);
+  virtual unsigned long FindCanonicalForm(unsigned long state, int& nbrTranslation);
 
   // find the canonical form of a state and find how many translations are needed to obtain the same state
   //
@@ -303,27 +337,26 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // nbrTranslation = reference on a integer where the number of translations needed to obtain the canonical form  will be stored
   // nbrTranslationToIdentity = reference on the number of translation needed to obtain the same state
   // return value = canonical form of the state
-  unsigned long FindCanonicalForm(unsigned long stateDescription, int& nbrTranslation, int& nbrTranslationToIdentity);
+  virtual unsigned long FindCanonicalForm(unsigned long stateDescription, int& nbrTranslation, int& nbrTranslationToIdentity);
 
-  // find how many translations are needed to obtain the same state
+  // find the size of the orbit for a given state
   //
-  // stateDescription = unsigned integer describing the state
-  // return value = number of translation needed to obtain the same state
-  int FindNumberTranslation(unsigned long stateDescription);
+  // return value = orbit size
+  virtual int FindOrbitSize(unsigned long stateDescription);
 
   // evaluate Hilbert space dimension
   //
   // currentSite = current site to occupy
   // currentSzValue = state current Sz value 
   // return value = Hilbert space dimension
-  long EvaluateHilbertSpaceDimension(int currentSite, int currentSzValue);
+  virtual long EvaluateHilbertSpaceDimension(int currentSite, int currentSzValue);
 
   // generate all states with no constraint on total Sz
   //
   // currentSite = current site to occupy
   // currentPosition = current position of the state that has to be considered
   // return value = number of generated states
-  long GenerateStates(int currentSite, long currentPosition);
+  virtual long RawGenerateStates(int currentSite, long currentPosition);
 
   // generate all states corresponding to a given total Sz
   //
@@ -331,13 +364,43 @@ class Potts3ChainWithTranslations : public AbstractSpinChainWithTranslations
   // currentSzValue = state current Sz value 
   // currentPosition = current position of the state that has to be considered
   // return value = number of generated states
-  long GenerateStates(int currentSite, int currentSzValue, long currentPosition);
+  virtual long RawGenerateStates(int currentSite, int currentSzValue, long currentPosition);
 
   // generate all states corresponding to a given momnetum
   //
-  void GenerateStates();
+  virtual void GenerateStates();
+
+  // apply a single translation in the x direction for a state description
+  //
+  // stateDescription = reference on the state description
+  virtual void ApplySingleXTranslation(unsigned long& stateDescription);
 
 };
+
+// factorized code that is used to symmetrize the result of any operator action
+//
+// state = reference on the state that has been produced with the operator action
+// nbrStateInOrbit = original number of states in the orbit before the operator action
+// coefficient = reference on the double where the multiplicative factor has to be stored
+// nbrTranslations = reference on the number of translations to obtain the canonical form of the resulting state
+// return value = index of the destination state  
+
+inline int Potts3ChainWithTranslations::SymmetrizeResult(unsigned long& state, int nbrStateInOrbit, double& coefficient, 
+							int& nbrTranslations)
+{
+  state = this->FindCanonicalForm(state, nbrTranslations);
+  int TmpMaxMomentum = 2 * this->ChainLength;
+  // while (((state >> TmpMaxMomentum) == 0x0ul) && (TmpMaxMomentum > 0))
+  //   --TmpMaxMomentum;
+  // int TmpIndex = this->FindStateIndex(state, TmpMaxMomentum);
+  int TmpIndex = this->FindStateIndex(state);
+  if (TmpIndex < this->HilbertSpaceDimension)
+    {
+      coefficient *= this->RescalingFactors[nbrStateInOrbit][this->NbrStateInOrbit[TmpIndex]];
+      nbrTranslations = (this->MaxXMomentum - nbrTranslations) % this->MaxXMomentum;
+     }
+  return TmpIndex;
+}
 
 // return index of resulting state from application of Sz_i operator on a given state
 //
@@ -405,8 +468,59 @@ inline int Potts3ChainWithTranslations::SmiSpj (int i, int j, int state, double&
     case 0x0ul:
       TmpState |= 0x2ul << i;      
       break;
+    }
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+    //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+}
+
+// return index of resulting state from application of Sz_k S-_i S+_j operator on a given state, notice that the numerical factor produced by Szk
+// is NOT included in coefficient but is returned separately 
+//
+// i = position of S- operator
+// j = position of S+ operator
+// k = position of Sz operator
+// state = index of the state to be applied on Sz_k S-_i S+_j operator
+// coefficient = reference on double where numerical coefficient has to be stored
+// szkCoefficient = reference on double where numerical coefficient for Szk has to be stored
+// nbrTranslations = reference on the number of translations to applied to the resulting state to obtain the return orbit describing state
+// return value = index of resulting state
+
+inline int Potts3ChainWithTranslations::SzkSmiSpj (int i, int j, int k, int state, double& coefficient, double& szkCoefficient, int& nbrTranslation)
+{
+  unsigned long TmpState = this->ChainDescription[state];
+  unsigned long TmpState2 = TmpState;
+  j <<= 1;
+  TmpState2 >>= j;
+  TmpState2 &= 0x3ul;
+  TmpState &= ~(0x3ul << j);
+  switch (TmpState2)
+    {
+    case 0x1ul:
+      TmpState |= 0x2ul << j;
+      break;
+    case 0x0ul:
+      TmpState |= 0x1ul << j;
+      break;
     }	  
-  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
+  i <<= 1;
+  TmpState2 = TmpState;
+  TmpState2 >>= i;
+  TmpState2 &= 0x3ul;
+  TmpState &= ~(0x3ul << i);
+  switch (TmpState2)
+    {
+    case 0x2ul:
+      TmpState |= 0x1ul << i;      
+      break;
+    case 0x0ul:
+      TmpState |= 0x2ul << i;      
+      break;
+    }
+  szkCoefficient = (((double) ((TmpState >> (k << 1)) & 0x1ul))
+		    - ((double) ((TmpState >> ((k << 1) + 1)) & 0x1ul)));
+  coefficient = 1.0;
+  return this->SymmetrizeResult(TmpState, this->NbrStateInOrbit[state], coefficient, nbrTranslation);
+  //  return this->FindStateIndexAndTransaltion(state, TmpState, nbrTranslation, i, coefficient);
 }
 
 // find the index of state and the number of translations required to get the canonical form
@@ -498,12 +612,20 @@ inline unsigned long Potts3ChainWithTranslations::FindCanonicalForm(unsigned lon
   return CanonicalState;
 }
 
-// find how many translations are needed to obtain the same state
+// apply a single translation in the x direction for a state description
 //
-// stateDescription = unsigned integer describing the state
-// return value = number of translation needed to obtain the same state
+// stateDescription = reference on the state description
 
-inline int Potts3ChainWithTranslations::FindNumberTranslation(unsigned long stateDescription)
+inline void Potts3ChainWithTranslations::ApplySingleXTranslation(unsigned long& stateDescription)
+{
+  stateDescription = (stateDescription >> 2) | ((stateDescription & 0x3ul) << this->ComplementaryStateShift);
+}
+
+// find the size of the orbit for a given state
+//
+// return value = orbit size
+
+inline int Potts3ChainWithTranslations::FindOrbitSize(unsigned long stateDescription)
 {
   unsigned long TmpState = (stateDescription >> 2) | ((stateDescription & ((unsigned long) 0x3)) << this->ComplementaryStateShift);
   int index = 1;  

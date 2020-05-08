@@ -206,7 +206,15 @@ int main(int argc, char** argv)
       delete IntialSpace;
       IntialSpace = TargetSpace;
       InitialVector = TargetVector;
-      InitialVector/=InitialVector.Norm();
+      double TmpNorm = InitialVector.Norm();
+      cout << "Norm of the L^-|psi>= " << TmpNorm << endl;
+      if (TmpNorm < 1e-12)
+	 cout << "Very small norm, vector will not be normalized." << endl;
+      else
+        { 
+	 InitialVector /= InitialVector.Norm();
+         cout << "Normalizing the vector..." << endl;
+        }  
       if (Manager.GetBoolean("check-l2") == true)
 	{
 	  ParticleOnSphereL2Hamiltonian Hamiltonian (IntialSpace, NbrParticles, LzMax, (Lz - (2 * i)), Architecture.GetArchitecture(), 1.0, 0);

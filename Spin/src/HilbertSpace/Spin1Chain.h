@@ -57,7 +57,8 @@ class Spin1Chain : public AbstractSpinChain
   friend class Spin1ChainWithTranslationsAndSzSymmetry;
   friend class Spin1ChainWithTranslationsAndInversionSymmetry;
   friend class Spin1ChainWithSzSymmetry;
-
+  friend class Spin1ChainWithTranslationsLong;
+  
  protected:
 
   // flag to indicate if the total sz component is fixed

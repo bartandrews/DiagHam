@@ -191,36 +191,21 @@ Complex AbstractLanczosAlgorithm::EvaluateSpectralResponse(double omega, const d
 
 
 // sample the spectral response and write to file
-void AbstractLanczosAlgorithm::SampleSpectralResponse(std::ostream &Str, double omegaMin, double omegaMax, double epsilon, int nbrPoints)
-{
-  double step=(omegaMax-omegaMin)/(nbrPoints);
-  double omega = omegaMin;
-  Complex response=0.0;
+void AbstractLanczosAlgorithm::SampleSpectralResponse(std::ostream &Str, double omegaMin, double omegaMax, double epsilon, double omegaInterval, double spectralResolution)
+{  
+//double step=(omegaMax-omegaMin)/(nbrPoints);
+//  double omega = omegaMin;
+  Complex previous_response=0.0;
   double poleOmega, widthOmega=0;
   
-  for (int i = 0; i<nbrPoints; ++i,omega+=step)
+  for (double omega = omegaMin; omega<omegaMax; omega+=omegaInterval)
   {
-    // poleOmega = the omega at which we have the highest response
-    // if current response is greater than previous, current omega = poleOmega
-    // widthOmega = half width half maximum omega
-    // if response drops below half max after pole for the first time, current omega = widthOmega
-    if (Norm(EvaluateSpectralResponse(omega, epsilon))>Norm(response))
-      poleOmega=omega;
-    else if ((widthOmega==0) && (Norm(EvaluateSpectralResponse(omega, epsilon))<0.5*Norm(EvaluateSpectralResponse(poleOmega, epsilon))))
+    // only print if the |difference| between adjacent points > spectralResolution (e.g. 1%)
+    if (fabs((Norm(EvaluateSpectralResponse(omega, epsilon))-Norm(previous_response))/Norm(previous_response))>spectralResolution)
     {
-      widthOmega=omega-poleOmega;
+      Str << omega <<" "<< Norm(EvaluateSpectralResponse(omega, epsilon)) << std::endl;
     }
-    response=EvaluateSpectralResponse(omega, epsilon);
-    Str << omega <<" "<< Norm(response) << std::endl;
-  }
-  //Str << "Pole omega = " << poleOmega << std::endl;
-  //Str << "HWHM omega = " << widthOmega << std::endl;
-  omega = poleOmega-widthOmega;
-  step=2*widthOmega/nbrPoints;
-  for (int i=0; i<nbrPoints; ++i,omega+=step)
-  {
-    response=EvaluateSpectralResponse(omega, epsilon);
-    Str << omega <<" "<< Norm(response) << std::endl;
+    previous_response=EvaluateSpectralResponse(omega, epsilon);
   }
 }
 

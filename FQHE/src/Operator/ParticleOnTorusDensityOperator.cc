@@ -573,8 +573,6 @@ void ParticleOnTorusDensityOperator::CalculateFormFactor()
 	      -0.5*(m2*Lx+kyFactor*(ky+qy))*(m2*Lx+kyFactor*(ky+qy))-0.5*kyFactor*ky*kyFactor*ky); //numerator exponent with negative m
 
     numerator+=exp(exp1Plus)+exp(exp1Minus); //sum symmetrically out from the origin
-
-    cout << "numerator = " << numerator << endl;
     
     --m1;
     ++m2;
@@ -590,15 +588,12 @@ void ParticleOnTorusDensityOperator::CalculateFormFactor()
       denominator+=exp(exp2); //only one term at the origin
     else
       denominator+=2.0*exp(exp2); //sum symmetrically out from the origin
- 
-    cout << "denominator = " << denominator << endl;  
-    
+     
     m2++;
   }
   
   this->FormFactor = numerator/denominator;
   
-  cout << "FormFactor = " << FormFactor << endl;
 }
 
 

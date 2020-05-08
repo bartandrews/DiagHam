@@ -358,7 +358,16 @@ class BosonOnSphereWithSU2Spin :  public ParticleOnSphereWithSpin
   // return value = reference on current output stream 
   virtual ostream& PrintStateMonomial (ostream& Str, long state);
  
-  // convert a state from one SU(2) basis to another, transforming the one body basis in each momentum sector
+   // convert a state from one SU(2) basis to another, transforming the one body basis in each momentum sector
+  //
+  // initialState = state to transform  
+  // targetState = vector where the transformed state has to be stored
+  // oneBodyBasis = array that gives the unitary matrices associated to each one body transformation, one per momentum sector
+  // firstComponent = index of the first component to compute in initialState
+  // nbrComponents = number of consecutive components to compute
+  virtual void TransformOneBodyBasis(RealVector& initialState, RealVector& targetState, RealMatrix* oneBodyBasis, long firstComponent = 0l, long nbrComponents = 0l);
+
+ // convert a state from one SU(2) basis to another, transforming the one body basis in each momentum sector
   //
   // initialState = state to transform  
   // targetState = vector where the transformed state has to be stored
@@ -580,6 +589,20 @@ class BosonOnSphereWithSU2Spin :  public ParticleOnSphereWithSpin
 					  ParticleOnSphereWithSpin* leftSpace, ParticleOnSphereWithSpin* rightSpace, 
 					  bool unnormalizedBasisFlag, unsigned long firstComponent, unsigned long nbrComponents);
 
+  // convert state of a SU(2) Hilbert space with fixed Sz to a SU(2) space with all sz sectors
+  //
+  // state = state that needs to be projected
+  // su2space = SU(2) space with fixed sz of the input state
+  // return value = input state expression in the SU(2) basis
+  virtual RealVector SU2ToSU2AllSz(RealVector& state, ParticleOnSphereWithSpin* su2space);
+
+  // convert state of a SU(2) Hilbert space with fixed Sz to a SU(2) space with all sz sectors
+  //
+  // state = state that needs to be projected
+  // su2space = SU(2) space with fixed sz of the input state
+  // return value = input state expression in the SU(2) basis
+  virtual ComplexVector SU2ToSU2AllSz(ComplexVector& state, ParticleOnSphereWithSpin* su2space);
+
  protected:
   
   // read Hilbert space description to disk
@@ -735,6 +758,21 @@ class BosonOnSphereWithSU2Spin :  public ParticleOnSphereWithSpin
   // oneBodyBasis = array that gives the unitary matrices associated to each one body transformation, one per momentum sector
   // occupationCoefficient = invert of the coefficient that comes from the initial state occupation number 
   // occupationCoefficientArray = array that provides 1/2 ln (N!)
+  virtual void TransformOneBodyBasisRecursive(RealVector& targetState, double coefficient,
+					      int position, int* momentumIndices, int* initialSU2Indices, int* currentSU2Indices, RealMatrix* oneBodyBasis, 
+					      double occupationCoefficient, double* occupationCoefficientArray);
+  
+  // recursive part of the convertion from a state from one SU(2) basis to another, transforming the one body basis in each momentum sector
+  //
+  // targetState = vector where the transformed state has to be stored
+  // coefficient = current coefficient to assign
+  // position = current particle consider in the n-body state
+  // momentumIndices = array that gives the momentum partition of the initial n-body state
+  // initialSU2Indices = array that gives the spin dressing the initial n-body state
+  // currentSU2Indices = array that gives the spin dressing the current transformed n-body state
+  // oneBodyBasis = array that gives the unitary matrices associated to each one body transformation, one per momentum sector
+  // occupationCoefficient = invert of the coefficient that comes from the initial state occupation number 
+  // occupationCoefficientArray = array that provides 1/2 ln (N!)
   virtual void TransformOneBodyBasisRecursive(ComplexVector& targetState, Complex coefficient,
 					      int position, int* momentumIndices, int* initialSU2Indices, int* currentSU2Indices, ComplexMatrix* oneBodyBasis, 
 					      double occupationCoefficient, double* occupationCoefficientArray);
@@ -818,7 +856,13 @@ class BosonOnSphereWithSU2Spin :  public ParticleOnSphereWithSpin
   // return value = corresponding integral
   virtual double ComputeIntegralPhi0Phi0Phi0OnCylinder(double k1, double l1, double k2, double l2, double k3, double l3, double perimeter);
 
-};
+  // compute the number of particles in a given state
+  //
+  // stateDescription = unsigned integer describing the state
+  // return value = number of particles
+  virtual int ComputeNbrParticles(unsigned long stateDescription);
+
+  };
 
 // get the number of orbitals
 //
@@ -1197,6 +1241,22 @@ inline int BosonOnSphereWithSU2Spin::FindStateIndex(unsigned long*& stateDescrip
   unsigned long Tmp2;
   this->BosonToFermion(stateDescriptionUp, stateDescriptionDown, Tmp1, Tmp2);
   return this->FindStateIndex(Tmp1, Tmp2);
+}
+
+// compute the number of particles in a given state
+//
+// stateDescription = unsigned integer describing the state
+// return value = number of particles
+
+inline int BosonOnSphereWithSU2Spin::ComputeNbrParticles(unsigned long stateDescription)
+{
+  unsigned long TmpNbrParticle = 0l;
+  while(stateDescription != 0x0ul) 
+    {
+      TmpNbrParticle += (stateDescription & 0x1ul);
+      stateDescription >>= 1;
+    }
+  return (int) TmpNbrParticle;
 }
 
 #endif

@@ -79,38 +79,6 @@ ParticleOnTorus* GetHilbertSpace(bool Statistics,int NbrParticles, int NbrFluxQu
     return Space;
 }
 
-// // tail recursive version
-// //
-// Complex Greens(ComplexMatrix& Matrix, int term, int final_term, double omega, const double EPSILON = 1.0/10000000000.0)
-// {
-//   if (term < final_term)
-//   {
-//     Complex denom_a = (Complex(omega,EPSILON)-Matrix[term][term]);
-//     Complex denom_fraction_numerator = (Matrix[term+1][term]*Matrix[term+1][term]);
-//     Complex denom_fraction_denom = Greens(Matrix, term+1, final_term, omega);
-//     return Complex(1.0)/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
-//   }
-//   else
-//   {
-//     return Complex(1.0);
-//   }
-// }
-
-// //iterative version
-// //
-// Complex Greens(ComplexMatrix& matrix, int term_start, int final_term, double omega, const double EPSILON = 1.0/10000000000.0)
-// {
-//   Complex rv(1.0); // for term == final_term
-//   for (int term = final_term-1; term >=term_start; --term) // go backwards
-//   {
-//     Complex denom_a = (Complex(omega,EPSILON)-matrix[term][term]);
-//     Complex denom_fraction_numerator = (matrix[term+1][term]*matrix[term+1][term]);
-//     Complex denom_fraction_denom = rv;
-//     rv =  Complex(1.0)/(denom_a - (denom_fraction_numerator/denom_fraction_denom));
-//   }
-//   return rv;
-// }
-
 int main ( int argc, char** argv )
 {
     cout.precision ( 14 );
@@ -135,11 +103,13 @@ int main ( int argc, char** argv )
     ( *SystemGroup ) += new SingleStringOption ( '\0', "state", "name of the vector file describing the state whose density has to be plotted" );
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-file", "file describing the 2-body interaction in terms of the pseudo-potential");
     (*SystemGroup) += new SingleStringOption ('\n', "interaction-name", "interaction name (as it should appear in output files)", "unknown");
-    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-min", "spectral response omega min",0.0);
-    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-max", "spectral response omega max",10.0);
-    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-interval", "number of Lanczos iterations after which the spectral response is printed",100);
-    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-nbrsteps", "number of points to be used in discretizing spectral response",100);
-    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-epsilon", "spectral response epsilon",1E-6);
+    
+    (*SystemGroup) += new SingleIntegerOption ('\n', "sr-save-interval", "number of Lanczos iterations after which the spectral response is printed, -1 for final only (default = -1)",-1);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-min", "spectral response omega min (default = 0.0)",0.0);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-max", "spectral response omega max (default = 10.0)",10.0);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-epsilon", "spectral response epsilon (default = 1E-2)",1E-2);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-omega-interval", "spectral response omega step size (default = 1E-2)",1E-2);
+    (*SystemGroup) += new SingleDoubleOption ('\n', "sr-spectral-resolution", "spectral response omega step size (default = 1E-2)",1E-2);
     
     ( *PlotOptionGroup ) += new SingleStringOption ( '\n', "output", "output file ame (default output name replace the .vec extension of the input file with .rho or .rhorho)", 0 );
     

@@ -314,6 +314,33 @@ bool Abstract2DTightBindingModel::WriteAsciiSpectrum(char* fileName)
   return true;
 }
 
+
+
+// write the energy spectrum in an ASCII file
+//
+// fileName = name of the ASCII file 
+// return value = true if no error occured
+
+bool Abstract2DTightBindingModel::WriteAsciiSpectrumColumn(char* fileName)
+{
+  ofstream File;
+  File.precision(14);
+  File.open(fileName);
+  this->WriteASCIIHeader(File, '#');
+  File << "# kx    ky   E" << endl;
+  for (int kx = 0; kx < this->NbrSiteX; ++kx)
+    {
+      for (int ky = 0; ky < this->NbrSiteY; ++ky)
+	{
+	  int LinearizedMomentumIndex = this->GetLinearizedMomentumIndex(kx, ky);	  
+	  for (int i = 0; i < this->NbrBands; ++i)
+          File << kx << " " << ky << " " << this->EnergyBandStructure[i][LinearizedMomentumIndex] << endl;
+	}
+    }
+  File.close();
+  return true;
+}
+
 // write the energy spectrum in an ASCII file, focusing on lines connecting the high symmetry points
 //
 // fileName = name of the ASCII file 
@@ -1530,16 +1557,34 @@ void Abstract2DTightBindingModel::ComputeAllProjectedMomenta()
     this->ProjectedMomenta[i] = new double [2];
   double projectedMomentum1;
   double projectedMomentum2;
-  for (int kx = 0; kx < this->NbrSiteX; ++kx)
+  if (this->NbrConnectedOrbitals != 0)
     {
-      for (int ky = 0; ky < this->NbrSiteY; ++ky)
+      for (int kx = 0; kx < this->NbrSiteX; ++kx)
 	{
-	  double kx_trans = kx + this->Offset * ky + this->GammaX;
-	  double ky_trans = ky + this->GammaY;
-	  projectedMomentum1 = 2.0 * M_PI * ((double) kx_trans * (double) this->Ny2 - (double) ky_trans * (double) this->Ny1) / ((double) (this->NbrSiteX * this->NbrSiteY));
-	  projectedMomentum2 = 2.0 * M_PI * ((double) kx_trans * (double) (-this->Nx2) + (double) ky_trans * (double)this->Nx1) / ((double) (this->NbrSiteX * this->NbrSiteY));
-	  this->ProjectedMomenta[this->GetLinearizedMomentumIndex(kx, ky)][0] = projectedMomentum1;
-	  this->ProjectedMomenta[this->GetLinearizedMomentumIndex(kx, ky)][1] = projectedMomentum2;
+	  for (int ky = 0; ky < this->NbrSiteY; ++ky)
+	    {
+	      double kx_trans = kx + this->Offset * ky;
+	      double ky_trans = ky;
+	      projectedMomentum1 = 2.0 * M_PI * ((double) kx_trans * (double) this->Ny2 - (double) ky_trans * (double) this->Ny1) / ((double) (this->NbrSiteX * this->NbrSiteY));
+	      projectedMomentum2 = 2.0 * M_PI * ((double) kx_trans * (double) (-this->Nx2) + (double) ky_trans * (double)this->Nx1) / ((double) (this->NbrSiteX * this->NbrSiteY));
+	      this->ProjectedMomenta[this->GetLinearizedMomentumIndex(kx, ky)][0] = projectedMomentum1;
+	      this->ProjectedMomenta[this->GetLinearizedMomentumIndex(kx, ky)][1] = projectedMomentum2;
+	    }
+	}
+    }
+  else
+    {
+      for (int kx = 0; kx < this->NbrSiteX; ++kx)
+	{
+	  for (int ky = 0; ky < this->NbrSiteY; ++ky)
+	    {
+	      double kx_trans = kx + this->Offset * ky + this->GammaX;
+	      double ky_trans = ky + this->GammaY;
+	      projectedMomentum1 = 2.0 * M_PI * ((double) kx_trans * (double) this->Ny2 - (double) ky_trans * (double) this->Ny1) / ((double) (this->NbrSiteX * this->NbrSiteY));
+	      projectedMomentum2 = 2.0 * M_PI * ((double) kx_trans * (double) (-this->Nx2) + (double) ky_trans * (double)this->Nx1) / ((double) (this->NbrSiteX * this->NbrSiteY));
+	      this->ProjectedMomenta[this->GetLinearizedMomentumIndex(kx, ky)][0] = projectedMomentum1;
+	      this->ProjectedMomenta[this->GetLinearizedMomentumIndex(kx, ky)][1] = projectedMomentum2;
+	    }
 	}
     }
 }
@@ -1663,7 +1708,9 @@ HermitianMatrix Abstract2DTightBindingModel::BuildTightBindingHamiltonianRecipro
 	  double TmpPhase = ((TmpKx * ((double) p)) 
 			      + (TmpKy * ((double) q)));
 	  if (k >= orbitalIndices[k][l])
-	    TmpHamiltonian.AddToMatrixElement(k, orbitalIndices[k][l], Conj(hoppingAmplitudes[k][l]) * Phase(TmpPhase));
+	    {
+	      TmpHamiltonian.AddToMatrixElement(k, orbitalIndices[k][l], Conj(hoppingAmplitudes[k][l]) * Phase(TmpPhase));
+	    }
 	}
     }
   return TmpHamiltonian; 
@@ -2185,4 +2232,19 @@ HermitianMatrix Abstract2DTightBindingModel::EvaluateFullMixedTwoPointCorrelatio
   delete[] TmpFormFactors;
   EntanglementHamiltonian /= ((double) (this->NbrSiteX));
   return EntanglementHamiltonian;
+}
+
+
+// compute the form factor for the density operator 
+// 
+// kx = momentum along x of annihilation operator
+// ky = momentum along y of creation operator
+// qx = momentum transfer along x direction
+// qy = momentum transfer along y direction
+// valleyIndex = valley index of density operator
+
+Complex Abstract2DTightBindingModel::ComputeDensityFormFactor(int kx, int ky, int qx, int qy, int valleyIndex)
+{
+    cout << "Warning: using dummy method Abstract2DTightBindingModel::ComputeDensityFormFactor" << endl;
+    return 0.0;
 }
